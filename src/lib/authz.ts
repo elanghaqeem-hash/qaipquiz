@@ -14,6 +14,26 @@ function extractToken(req: NextRequest): string | undefined {
   return undefined;
 }
 
+function isSameOriginMutation(req: NextRequest): boolean {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return true;
+
+  // Explicit bearer-token clients are not browser-cookie CSRF targets.
+  if (req.headers.get('authorization')?.startsWith('Bearer ')) return true;
+
+  const origin = req.headers.get('origin');
+  if (!origin) return true;
+
+  const forwardedHost = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const requestHost = forwardedHost || req.headers.get('host');
+  if (!requestHost) return false;
+
+  try {
+    return new URL(origin).host.toLowerCase() === requestHost.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 export function getAuthenticatedUser(req: NextRequest): AuthTokenPayload | null {
   const token = extractToken(req);
   if (!token) return null;
@@ -24,6 +44,16 @@ export function authorizeRequest(
   req: NextRequest,
   allowedRoles: UserRole[] = ['SUPER_ADMIN', 'TRAINER']
 ): { ok: true; user: AuthTokenPayload } | { ok: false; response: NextResponse } {
+  if (!isSameOriginMutation(req)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { success: false, error: 'Origin permintaan tidak diizinkan.' },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } }
+      ),
+    };
+  }
+
   const user = getAuthenticatedUser(req);
   if (!user) {
     return {
