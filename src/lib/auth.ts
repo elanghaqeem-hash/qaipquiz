@@ -15,6 +15,13 @@ export interface AuthTokenPayload {
   exp: number;
 }
 
+export interface ParticipantTokenPayload {
+  participantId: string;
+  sessionId: string;
+  scope: 'PARTICIPANT';
+  exp: number;
+}
+
 function getAuthSecret(): string {
   const secret = process.env.AUTH_SECRET;
   if (secret && secret.length >= 32) return secret;
@@ -122,7 +129,7 @@ function getUsers(): UserAccount[] {
   return bootstrapUsers;
 }
 
-function signToken(payload: AuthTokenPayload): string {
+function signPayload(payload: object): string {
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = createHmac('sha256', getAuthSecret())
     .update(encodedPayload)
@@ -130,7 +137,7 @@ function signToken(payload: AuthTokenPayload): string {
   return `${encodedPayload}.${signature}`;
 }
 
-function verifySignedToken(token: string): AuthTokenPayload | null {
+function decodeVerifiedPayload(token: string): unknown | null {
   try {
     const [encodedPayload, encodedSignature, extra] = token.split('.');
     if (!encodedPayload || !encodedSignature || extra) return null;
@@ -141,23 +148,41 @@ function verifySignedToken(token: string): AuthTokenPayload | null {
     const suppliedSignature = Buffer.from(encodedSignature, 'base64url');
     if (!safeEqual(expectedSignature, suppliedSignature)) return null;
 
-    const decoded = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as AuthTokenPayload;
-    if (
-      !decoded ||
-      typeof decoded.id !== 'string' ||
-      typeof decoded.username !== 'string' ||
-      typeof decoded.name !== 'string' ||
-      !STAFF_ROLES.includes(decoded.role) ||
-      typeof decoded.exp !== 'number' ||
-      decoded.exp < Date.now()
-    ) {
-      return null;
-    }
-
-    return decoded;
+    return JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
   } catch {
     return null;
   }
+}
+
+function verifySignedToken(token: string): AuthTokenPayload | null {
+  const decoded = decodeVerifiedPayload(token) as AuthTokenPayload | null;
+  if (
+    !decoded ||
+    typeof decoded.id !== 'string' ||
+    typeof decoded.username !== 'string' ||
+    typeof decoded.name !== 'string' ||
+    !STAFF_ROLES.includes(decoded.role) ||
+    typeof decoded.exp !== 'number' ||
+    decoded.exp < Date.now()
+  ) {
+    return null;
+  }
+  return decoded;
+}
+
+function verifyParticipantToken(token: string): ParticipantTokenPayload | null {
+  const decoded = decodeVerifiedPayload(token) as ParticipantTokenPayload | null;
+  if (
+    !decoded ||
+    decoded.scope !== 'PARTICIPANT' ||
+    typeof decoded.participantId !== 'string' ||
+    typeof decoded.sessionId !== 'string' ||
+    typeof decoded.exp !== 'number' ||
+    decoded.exp < Date.now()
+  ) {
+    return null;
+  }
+  return decoded;
 }
 
 function validateNewUser(userData: { username: string; password: string; name: string; role: UserRole; email?: string }): void {
@@ -192,7 +217,6 @@ export const authService = {
     const found = users[foundIndex];
     if (!verifyPassword(password, found.password_hash)) return null;
 
-    // Transparently migrate legacy plaintext password after successful login.
     if (!found.password_hash.startsWith('scrypt$')) {
       found.password_hash = hashPassword(password);
       users[foundIndex] = found;
@@ -208,10 +232,19 @@ export const authService = {
     };
 
     const { password_hash: _passwordHash, ...userProfile } = found;
-    return { user: userProfile, token: signToken(payload) };
+    return { user: userProfile, token: signPayload(payload) };
   },
 
   verifyToken: (token: string): AuthTokenPayload | null => verifySignedToken(token),
+
+  createParticipantToken: (participantId: string, sessionId: string): string => signPayload({
+    participantId,
+    sessionId,
+    scope: 'PARTICIPANT',
+    exp: Date.now() + 12 * 60 * 60 * 1000,
+  } satisfies ParticipantTokenPayload),
+
+  verifyParticipantToken: (token: string): ParticipantTokenPayload | null => verifyParticipantToken(token),
 
   createUser: (userData: { username: string; password: string; name: string; role: UserRole; email?: string }): Omit<UserAccount, 'password_hash'> => {
     validateNewUser(userData);
