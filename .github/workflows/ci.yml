@@ -32,3 +32,6 @@ jobs:
 
       - name: Build OpenNext for Cloudflare
         run: npm run build:cloudflare
+
+      - name: Validate Wrangler deployment
+        run: npx wrangler deploy --dry-run --outdir .wrangler-dry-run
