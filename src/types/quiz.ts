@@ -3,7 +3,7 @@ export type UserRole = 'SUPER_ADMIN' | 'TRAINER' | 'PARTICIPANT';
 export interface UserAccount {
   id: string;
   username: string;
-  password_hash: string; // plain for demo/testing or hashed
+  password_hash: string;
   name: string;
   role: UserRole;
   email?: string;
@@ -109,6 +109,7 @@ export interface ParticipantAnswer {
   question_index: number;
   selected_option: 'A' | 'B' | 'C' | 'D' | null;
   is_correct: boolean;
+  is_timeout?: boolean;
   response_time_ms: number;
   score: number;
   speed_bonus: number;

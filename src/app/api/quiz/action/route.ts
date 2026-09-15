@@ -1,43 +1,147 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authService } from '@/lib/auth';
+import { authorizeRequest } from '@/lib/authz';
 import { db } from '@/lib/db';
 import { roomManager } from '@/lib/room-manager';
+import { toPublicParticipant, toPublicSession } from '@/lib/public-session';
+
+const HOST_ACTIONS = new Set([
+  'START',
+  'NEXT_QUESTION',
+  'REVEAL_ANSWER',
+  'SHOW_LEADERBOARD',
+  'SHOW_PODIUM',
+  'FINISH',
+  'PAUSE',
+  'RESUME',
+  'SKIP',
+]);
+
+function getParticipantAuth(req: NextRequest) {
+  const token = req.cookies.get('tqa_participant_token')?.value;
+  return token ? authService.verifyParticipantToken(token) : null;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { roomCode, action, participantData, answerData } = body;
+    const roomCode = typeof body.roomCode === 'string' ? body.roomCode.trim().toUpperCase() : '';
+    const action = typeof body.action === 'string' ? body.action : '';
 
-    if (!roomCode) {
-      return NextResponse.json({ success: false, error: 'roomCode is required' }, { status: 400 });
+    if (!roomCode || !action) {
+      return NextResponse.json({ success: false, error: 'roomCode dan action wajib diisi.' }, { status: 400 });
     }
 
     const session = db.getSessionByRoomCode(roomCode);
     if (!session) {
-      return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Sesi quiz tidak ditemukan.' }, { status: 404 });
     }
 
-    // 1. PARTICIPANT JOIN
     if (action === 'JOIN') {
-      const result = roomManager.joinRoom(roomCode, participantData);
-      return NextResponse.json({ success: true, data: result });
+      const participantData = body.participantData || {};
+      if (
+        typeof participantData.name !== 'string' || participantData.name.trim().length < 2 || participantData.name.length > 100 ||
+        typeof participantData.company !== 'string' || participantData.company.trim().length < 2 || participantData.company.length > 150 ||
+        typeof participantData.unit_kerja !== 'string' || participantData.unit_kerja.trim().length < 2 || participantData.unit_kerja.length > 150
+      ) {
+        return NextResponse.json({ success: false, error: 'Nama, perusahaan, dan unit kerja wajib diisi dengan benar.' }, { status: 400 });
+      }
+
+      const email = typeof participantData.email === 'string' ? participantData.email.trim() : '';
+      if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+        return NextResponse.json({ success: false, error: 'Format email peserta tidak valid.' }, { status: 400 });
+      }
+
+      const existingParticipant = db.getParticipants(session.session_id).find(participant =>
+        participant.name.trim().toLowerCase() === participantData.name.trim().toLowerCase() &&
+        participant.company.trim().toLowerCase() === participantData.company.trim().toLowerCase()
+      );
+
+      if (existingParticipant) {
+        const reconnectAuth = getParticipantAuth(req);
+        if (
+          !reconnectAuth ||
+          reconnectAuth.sessionId !== session.session_id ||
+          reconnectAuth.participantId !== existingParticipant.id
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Nama peserta tersebut sudah terdaftar di room ini. Gunakan identitas Anda sendiri atau nama tampilan lain.',
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      const result = roomManager.joinRoom(roomCode, {
+        name: participantData.name,
+        company: participantData.company,
+        unit_kerja: participantData.unit_kerja,
+        email: email || undefined,
+      });
+
+      const publicParticipant = toPublicParticipant(result.participant);
+      const participantToken = authService.createParticipantToken(result.participant.id, result.session.session_id);
+      const response = NextResponse.json({
+        success: true,
+        data: {
+          participant: {
+            ...publicParticipant,
+            company: result.participant.company,
+            unit_kerja: result.participant.unit_kerja,
+          },
+          session: toPublicSession(result.session),
+        },
+      });
+
+      response.cookies.set('tqa_participant_token', participantToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/api/quiz',
+        maxAge: 12 * 60 * 60,
+      });
+      return response;
     }
 
-    // 2. PARTICIPANT SUBMIT ANSWER
     if (action === 'SUBMIT_ANSWER') {
-      const { participantId, selectedOption } = answerData;
-      const result = roomManager.submitAnswer(roomCode, participantId, selectedOption);
-      return NextResponse.json({ success: true, data: result });
+      const answerData = body.answerData || {};
+      const participantId = typeof answerData.participantId === 'string' ? answerData.participantId : '';
+      const selectedOption = answerData.selectedOption;
+
+      if (!participantId || !['A', 'B', 'C', 'D'].includes(selectedOption)) {
+        return NextResponse.json({ success: false, error: 'Data jawaban tidak valid.' }, { status: 400 });
+      }
+
+      const participantAuth = getParticipantAuth(req);
+      if (
+        !participantAuth ||
+        participantAuth.participantId !== participantId ||
+        participantAuth.sessionId !== session.session_id
+      ) {
+        return NextResponse.json(
+          { success: false, error: 'Sesi peserta tidak valid. Silakan bergabung kembali melalui Room Code.' },
+          { status: 401 }
+        );
+      }
+
+      roomManager.submitAnswer(roomCode, participantId, selectedOption);
+      return NextResponse.json({ success: true, accepted: true });
     }
 
-    // 3. HOST ACTIONS
-    const hostActions = ['START', 'NEXT_QUESTION', 'REVEAL_ANSWER', 'SHOW_LEADERBOARD', 'SHOW_PODIUM', 'FINISH', 'PAUSE', 'RESUME', 'SKIP'];
-    if (hostActions.includes(action)) {
-      const updatedSession = roomManager.updateSessionStatus(roomCode, action);
-      return NextResponse.json({ success: true, data: updatedSession });
+    if (HOST_ACTIONS.has(action)) {
+      const auth = authorizeRequest(req, ['SUPER_ADMIN', 'TRAINER']);
+      if (!auth.ok) return auth.response;
+
+      const updatedSession = roomManager.updateSessionStatus(roomCode, action as any);
+      return NextResponse.json({ success: true, data: toPublicSession(updatedSession) });
     }
 
-    return NextResponse.json({ success: false, error: 'Aksi tidak dikenali' }, { status: 400 });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Aksi tidak dikenali.' }, { status: 400 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Gagal memproses aksi quiz.';
+    const status = /tidak ditemukan|tidak valid|terkunci|tidak aktif|sudah|hanya dapat/i.test(message) ? 400 : 500;
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }
