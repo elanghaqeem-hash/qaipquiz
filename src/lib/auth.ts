@@ -13,16 +13,21 @@ function fromBase64url(input: string): Uint8Array {
   return new Uint8Array(Buffer.from(input, 'base64url'));
 }
 
+function toArrayBuffer(input: Uint8Array): ArrayBuffer {
+  return Uint8Array.from(input).buffer;
+}
+
 async function derivePassword(password: string, salt: Uint8Array, iterations = PBKDF2_ITERATIONS): Promise<Uint8Array> {
+  const passwordBytes = new TextEncoder().encode(password);
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(password),
+    toArrayBuffer(passwordBytes),
     'PBKDF2',
     false,
     ['deriveBits']
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations },
+    { name: 'PBKDF2', hash: 'SHA-256', salt: toArrayBuffer(salt), iterations },
     key,
     256
   );
@@ -56,14 +61,16 @@ function getTokenSecret(): string {
 }
 
 async function sign(value: string): Promise<string> {
+  const secretBytes = new TextEncoder().encode(getTokenSecret());
+  const valueBytes = new TextEncoder().encode(value);
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(getTokenSecret()),
+    toArrayBuffer(secretBytes),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   );
-  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
+  const signature = await crypto.subtle.sign('HMAC', key, toArrayBuffer(valueBytes));
   return base64url(new Uint8Array(signature));
 }
 
