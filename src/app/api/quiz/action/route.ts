@@ -17,6 +17,11 @@ const HOST_ACTIONS = new Set([
   'SKIP',
 ]);
 
+function getParticipantAuth(req: NextRequest) {
+  const token = req.cookies.get('tqa_participant_token')?.value;
+  return token ? authService.verifyParticipantToken(token) : null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -42,11 +47,38 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Nama, perusahaan, dan unit kerja wajib diisi dengan benar.' }, { status: 400 });
       }
 
+      const email = typeof participantData.email === 'string' ? participantData.email.trim() : '';
+      if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+        return NextResponse.json({ success: false, error: 'Format email peserta tidak valid.' }, { status: 400 });
+      }
+
+      const existingParticipant = db.getParticipants(session.session_id).find(participant =>
+        participant.name.trim().toLowerCase() === participantData.name.trim().toLowerCase() &&
+        participant.company.trim().toLowerCase() === participantData.company.trim().toLowerCase()
+      );
+
+      if (existingParticipant) {
+        const reconnectAuth = getParticipantAuth(req);
+        if (
+          !reconnectAuth ||
+          reconnectAuth.sessionId !== session.session_id ||
+          reconnectAuth.participantId !== existingParticipant.id
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Nama peserta tersebut sudah terdaftar di room ini. Gunakan identitas Anda sendiri atau nama tampilan lain.',
+            },
+            { status: 409 }
+          );
+        }
+      }
+
       const result = roomManager.joinRoom(roomCode, {
         name: participantData.name,
         company: participantData.company,
         unit_kerja: participantData.unit_kerja,
-        email: typeof participantData.email === 'string' ? participantData.email.slice(0, 254) : undefined,
+        email: email || undefined,
       });
 
       const publicParticipant = toPublicParticipant(result.participant);
@@ -82,8 +114,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Data jawaban tidak valid.' }, { status: 400 });
       }
 
-      const participantToken = req.cookies.get('tqa_participant_token')?.value;
-      const participantAuth = participantToken ? authService.verifyParticipantToken(participantToken) : null;
+      const participantAuth = getParticipantAuth(req);
       if (
         !participantAuth ||
         participantAuth.participantId !== participantId ||
