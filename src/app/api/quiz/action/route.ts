@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authService } from '@/lib/auth';
 import { authorizeRequest } from '@/lib/authz';
 import { db } from '@/lib/db';
 import { roomManager } from '@/lib/room-manager';
@@ -48,13 +49,28 @@ export async function POST(req: NextRequest) {
         email: typeof participantData.email === 'string' ? participantData.email.slice(0, 254) : undefined,
       });
 
-      return NextResponse.json({
+      const publicParticipant = toPublicParticipant(result.participant);
+      const participantToken = authService.createParticipantToken(result.participant.id, result.session.session_id);
+      const response = NextResponse.json({
         success: true,
         data: {
-          participant: toPublicParticipant(result.participant),
+          participant: {
+            ...publicParticipant,
+            company: result.participant.company,
+            unit_kerja: result.participant.unit_kerja,
+          },
           session: toPublicSession(result.session),
         },
       });
+
+      response.cookies.set('tqa_participant_token', participantToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/api/quiz',
+        maxAge: 12 * 60 * 60,
+      });
+      return response;
     }
 
     if (action === 'SUBMIT_ANSWER') {
@@ -66,8 +82,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Data jawaban tidak valid.' }, { status: 400 });
       }
 
+      const participantToken = req.cookies.get('tqa_participant_token')?.value;
+      const participantAuth = participantToken ? authService.verifyParticipantToken(participantToken) : null;
+      if (
+        !participantAuth ||
+        participantAuth.participantId !== participantId ||
+        participantAuth.sessionId !== session.session_id
+      ) {
+        return NextResponse.json(
+          { success: false, error: 'Sesi peserta tidak valid. Silakan bergabung kembali melalui Room Code.' },
+          { status: 401 }
+        );
+      }
+
       roomManager.submitAnswer(roomCode, participantId, selectedOption);
-      // Deliberately do not return correctness/score before trainer reveals the answer.
       return NextResponse.json({ success: true, accepted: true });
     }
 
