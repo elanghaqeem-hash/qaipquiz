@@ -1,0 +1,23 @@
+﻿# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production / Next.js
+.next/
+out/
+build/
+dist/
+
+# Environment
+.env
+.env*.local
+
+# Office temporary files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+*.tmp
+
+# Sync logs
+auto_sync.log

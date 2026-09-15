@@ -1,0 +1,20 @@
+[
+  {
+    "id": "usr-admin-01",
+    "username": "admin",
+    "password_hash": "admin123",
+    "name": "Super Administrator",
+    "role": "SUPER_ADMIN",
+    "email": "admin@audit-training.id",
+    "created_at": "2026-09-15T16:17:14.989Z"
+  },
+  {
+    "id": "usr-trainer-01",
+    "username": "trainer",
+    "password_hash": "trainer123",
+    "name": "Senior Lead Trainer",
+    "role": "TRAINER",
+    "email": "trainer@audit-training.id",
+    "created_at": "2026-09-15T16:17:14.989Z"
+  }
+]
