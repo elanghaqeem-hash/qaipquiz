@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { db } from './db';
 import { calculateQuestionScore } from './scoring';
-import { toPublicParticipant, toPublicParticipants, toPublicSession } from './public-session';
+import { toPublicParticipant, toPublicParticipantsForSession, toPublicSession } from './public-session';
 import { Participant, ParticipantAnswer, QuizSession, TeamId } from '@/types/quiz';
 
 type SSEListener = (data: { event: string; payload: unknown }) => void;
@@ -52,6 +52,12 @@ function assertState(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
 }
 
+function getPublicParticipantsForRoom(session: QuizSession) {
+  const participants = db.getParticipants(session.session_id);
+  const answers = db.getAnswers(session.session_id);
+  return toPublicParticipantsForSession(participants, session, answers);
+}
+
 export const roomManager = {
   subscribe: (roomCode: string, clientId: string, listener: SSEListener): (() => void) => {
     const state = getRoomState(roomCode);
@@ -93,7 +99,7 @@ export const roomManager = {
       existing.last_active = Date.now();
       db.saveParticipant(existing);
       roomManager.broadcast(roomCode, 'PARTICIPANT_JOINED', {
-        participants: toPublicParticipants(db.getParticipants(session.session_id)),
+        participants: getPublicParticipantsForRoom(session),
         newParticipant: toPublicParticipant(existing),
       });
       return { participant: existing, session };
@@ -130,7 +136,7 @@ export const roomManager = {
 
     db.saveParticipant(newParticipant);
     roomManager.broadcast(roomCode, 'PARTICIPANT_JOINED', {
-      participants: toPublicParticipants(db.getParticipants(session.session_id)),
+      participants: getPublicParticipantsForRoom(session),
       newParticipant: toPublicParticipant(newParticipant),
     });
 
@@ -331,13 +337,12 @@ export const roomManager = {
     const distribution = currentQuestion
       ? roomManager.getAnswerDistribution(session.session_id, currentQuestion.question_id)
       : null;
-    const participants = db.getParticipants(session.session_id);
 
     roomManager.broadcast(roomCode, 'STATE_CHANGE', {
       session: toPublicSession(session),
       action,
       distribution,
-      participants: toPublicParticipants(participants),
+      participants: getPublicParticipantsForRoom(session),
     });
 
     return session;
