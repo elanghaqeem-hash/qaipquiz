@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { toPublicParticipants, toPublicSession } from '@/lib/public-session';
+import { toPublicParticipantsForSession, toPublicSession } from '@/lib/public-session';
 import { roomManager } from '@/lib/room-manager';
 
 export const dynamic = 'force-dynamic';
@@ -24,11 +24,13 @@ export async function GET(req: NextRequest) {
 
   const customReadable = new ReadableStream({
     start(controller) {
+      const participants = db.getParticipants(session.session_id);
+      const answers = db.getAnswers(session.session_id);
       const initialPayload = {
         event: 'INIT_STATE',
         payload: {
           session: toPublicSession(session),
-          participants: toPublicParticipants(db.getParticipants(session.session_id)),
+          participants: toPublicParticipantsForSession(participants, session, answers),
           serverTime: Date.now(),
         },
       };
