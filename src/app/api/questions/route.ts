@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser, requireRole } from '@/lib/authorize';
 import { Question } from '@/types/quiz';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,14 @@ export async function GET(req: NextRequest) {
     if (domain && domain !== 'ALL') questions = questions.filter(q => q.gias_domain.includes(domain));
     if (status && status !== 'ALL') questions = questions.filter(q => q.status === status);
 
-    return NextResponse.json({ success: true, count: questions.length, data: questions });
+    const user = await getAuthenticatedUser(req);
+    const canManage = user && ['SUPER_ADMIN', 'TRAINER'].includes(user.role);
+    const data = canManage ? questions : questions.map(q => {
+      const { correct_answer: _answer, explanation: _explanation, learning_point: _learningPoint, ...safe } = q;
+      return safe;
+    });
+
+    return NextResponse.json({ success: true, count: data.length, data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -34,6 +42,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await requireRole(req, ['SUPER_ADMIN', 'TRAINER']))) {
+      return NextResponse.json({ success: false, error: 'Akses ditolak' }, { status: 403 });
+    }
     const body = await req.json();
     if (!body.question_text || body.question_text.trim().length < 5) {
       return NextResponse.json({ success: false, error: 'Teks pertanyaan wajib diisi minimal 5 karakter' }, { status: 400 });
@@ -85,6 +96,9 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    if (!(await requireRole(req, ['SUPER_ADMIN', 'TRAINER']))) {
+      return NextResponse.json({ success: false, error: 'Akses ditolak' }, { status: 403 });
+    }
     const body = await req.json();
     if (!body.question_id) {
       return NextResponse.json({ success: false, error: 'question_id wajib disertakan' }, { status: 400 });
@@ -97,6 +111,9 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    if (!(await requireRole(req, ['SUPER_ADMIN']))) {
+      return NextResponse.json({ success: false, error: 'Akses ditolak' }, { status: 403 });
+    }
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, error: 'id param required' }, { status: 400 });
     return NextResponse.json({ success: await db.deleteQuestion(id) });
