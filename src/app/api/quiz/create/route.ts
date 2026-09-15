@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireRole } from '@/lib/authorize';
 import { QuizSession, Question } from '@/types/quiz';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,10 @@ function selectSmartRandom(all: Question[], count: number, categoryFilter?: stri
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await requireRole(req, ['SUPER_ADMIN', 'TRAINER']))) {
+      return NextResponse.json({ success: false, error: 'Akses ditolak' }, { status: 403 });
+    }
+
     const body = await req.json();
     const {
       title,
@@ -47,9 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     let roomCode = generateRoomCode();
-    for (let attempt = 0; attempt < 10 && await db.getSessionByRoomCode(roomCode); attempt += 1) {
-      roomCode = generateRoomCode();
-    }
+    for (let attempt = 0; attempt < 10 && await db.getSessionByRoomCode(roomCode); attempt += 1) roomCode = generateRoomCode();
 
     const now = new Date().toISOString();
     const newSession: QuizSession = {
