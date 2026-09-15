@@ -1,13 +1,27 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "qaipquiz",
-  "main": ".open-next/worker.js",
+  "main": "./custom-worker.js",
   "compatibility_date": "2026-09-16",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "QUIZ_STORE",
+        "class_name": "QuizStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["QuizStore"]
+    }
+  ],
   "observability": {
     "enabled": true
   }
