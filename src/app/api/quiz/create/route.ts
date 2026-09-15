@@ -2,34 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { QuizSession, Question } from '@/types/quiz';
 
+export const dynamic = 'force-dynamic';
+
 function generateRoomCode(): string {
-  const letters = 'QAIP';
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `${letters}-${num}`;
+  return `QAIP-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
-function selectSmartRandom(
-  all: Question[],
-  count: number,
-  categoryFilter?: string,
-  difficultyFilter?: string
-): Question[] {
+function selectSmartRandom(all: Question[], count: number, categoryFilter?: string, difficultyFilter?: string): Question[] {
   let pool = all.filter(q => q.status === 'Published');
-  
-  if (categoryFilter && categoryFilter !== 'ALL') {
-    pool = pool.filter(q => q.category === categoryFilter);
-  }
-  if (difficultyFilter && difficultyFilter !== 'ALL') {
-    pool = pool.filter(q => q.difficulty === difficultyFilter);
-  }
-
-  // Shuffle pool with Fisher-Yates
+  if (categoryFilter && categoryFilter !== 'ALL') pool = pool.filter(q => q.category === categoryFilter);
+  if (difficultyFilter && difficultyFilter !== 'ALL') pool = pool.filter(q => q.difficulty === difficultyFilter);
   const shuffled = [...pool];
-  for (let i = shuffled.length - 1; i > 0; i--) {
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
@@ -47,27 +34,24 @@ export async function POST(req: NextRequest) {
       selected_question_ids = [],
       category_filter,
       difficulty_filter,
-      settings = {}
+      settings = {},
     } = body;
 
-    const allQuestions = db.getQuestions();
-    let chosenQuestions: Question[] = [];
-
-    if (selection_type === 'manual' && Array.isArray(selected_question_ids) && selected_question_ids.length > 0) {
-      chosenQuestions = allQuestions.filter(q => selected_question_ids.includes(q.question_id));
-    } else {
-      chosenQuestions = selectSmartRandom(allQuestions, Number(question_count), category_filter, difficulty_filter);
-    }
+    const allQuestions = await db.getQuestions();
+    const chosenQuestions = selection_type === 'manual' && Array.isArray(selected_question_ids) && selected_question_ids.length > 0
+      ? allQuestions.filter(q => selected_question_ids.includes(q.question_id))
+      : selectSmartRandom(allQuestions, Number(question_count), category_filter, difficulty_filter);
 
     if (chosenQuestions.length === 0) {
       return NextResponse.json({ success: false, error: 'Tidak ada soal yang terpilih' }, { status: 400 });
     }
 
     let roomCode = generateRoomCode();
-    while (db.getSessionByRoomCode(roomCode)) {
+    for (let attempt = 0; attempt < 10 && await db.getSessionByRoomCode(roomCode); attempt += 1) {
       roomCode = generateRoomCode();
     }
 
+    const now = new Date().toISOString();
     const newSession: QuizSession = {
       session_id: 'sess-' + Date.now(),
       room_code: roomCode,
@@ -85,26 +69,21 @@ export async function POST(req: NextRequest) {
         speed_bonus_enabled: settings.speed_bonus_enabled !== false,
         streak_bonus_enabled: settings.streak_bonus_enabled !== false,
         scoring_mode: settings.scoring_mode || 'STANDARD',
-        allow_answer_change: !!settings.allow_answer_change,
+        allow_answer_change: Boolean(settings.allow_answer_change),
         suspense_mode: settings.suspense_mode !== false,
         passing_score: Number(settings.passing_score) || 75,
-        randomize_questions: !!settings.randomize_questions,
-        randomize_options: !!settings.randomize_options,
+        randomize_questions: Boolean(settings.randomize_questions),
+        randomize_options: Boolean(settings.randomize_options),
         reveal_duration_seconds: Number(settings.reveal_duration_seconds) || 10,
-        show_explanation: settings.show_explanation !== false
+        show_explanation: settings.show_explanation !== false,
       },
       questions: chosenQuestions,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: now,
+      updated_at: now,
     };
 
-    db.saveSession(newSession);
-
-    return NextResponse.json({
-      success: true,
-      data: newSession,
-      room_code: newSession.room_code
-    });
+    const saved = await db.saveSession(newSession);
+    return NextResponse.json({ success: true, data: saved, room_code: saved.room_code });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
