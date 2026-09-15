@@ -1,17 +1,27 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 .pnp
 .pnp.js
 
-# Production / Next.js
+# Production / Next.js / OpenNext
 .next/
+.open-next/
 out/
 build/
 dist/
 
+# Cloudflare local artifacts
+.wrangler/
+.dev.vars
+.dev.vars.*
+cloudflare-env.d.ts
+
 # Environment
 .env
 .env*.local
+
+# Local mutable runtime data (production uses Durable Object storage)
+data/db.json
 
 # Office temporary files
 ~$*.docx
