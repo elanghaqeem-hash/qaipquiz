@@ -1,3 +1,6 @@
 Set WshShell = CreateObject("WScript.Shell")
-scriptDir = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
-WshShell.Run "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & scriptDir & "\auto_sync.ps1""", 0, False
+Set fso = CreateObject("Scripting.FileSystemObject")
+scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
+psScript = scriptDir & "\auto_sync.ps1"
+cmd = "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NoProfile -File """ & psScript & """"
+WshShell.Run cmd, 0, False

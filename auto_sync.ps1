@@ -3,43 +3,50 @@
     [string]$Branch = "main"
 )
 
-$RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $RepoDir
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $ScriptDir) {
+    $ScriptDir = (Get-Location).Path
+}
+Set-Location $ScriptDir
 
-$LogFile = Join-Path $RepoDir "auto_sync.log"
+$LogFile = Join-Path $ScriptDir "auto_sync.log"
 
-function Write-SyncLog ($Message) {
-    $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    $logEntry = "[] $Message"
+function Write-SyncLog {
+    param([string]$Message)
+    $ts = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    $logEntry = "[$ts] $Message"
     Write-Host $logEntry
-    $logEntry | Out-File -FilePath $LogFile -Append -Encoding utf8
+    try {
+        $logEntry | Out-File -FilePath $LogFile -Append -Encoding utf8
+    } catch {}
 }
 
-Write-SyncLog "Auto-sync watcher started for $RepoDir on branch $Branch (interval: ${PollIntervalSeconds}s)"
+Write-SyncLog "Auto-sync started in $ScriptDir on branch $Branch (poll interval: ${PollIntervalSeconds}s)"
 
 while ($true) {
     try {
         $status = git status --porcelain 2>$null
         if ($status) {
-            Write-SyncLog "Detected changes:"
+            Write-SyncLog "Changes detected:"
             $status | ForEach-Object { Write-SyncLog "  $_" }
 
-            # Short wait for file write/lock completion
+            # Brief pause to let file writes complete
             Start-Sleep -Seconds 2
 
             git add -A
             $staged = git status --porcelain 2>$null
             if ($staged) {
-                $commitMsg = "Auto-update: " + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                $now = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                $commitMsg = "Auto-update: $now"
                 git commit -m $commitMsg
                 Write-SyncLog "Committed: $commitMsg"
 
-                $pushOutput = git push origin $Branch 2>&1
-                Write-SyncLog "Push result: $pushOutput"
+                $pushResult = git push origin $Branch 2>&1
+                Write-SyncLog "Push result:`n$pushResult"
             }
         }
     } catch {
-        Write-SyncLog "Error during sync: $_"
+        Write-SyncLog "Error: $_"
     }
 
     Start-Sleep -Seconds $PollIntervalSeconds
