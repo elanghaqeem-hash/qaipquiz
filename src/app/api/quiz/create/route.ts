@@ -1,11 +1,11 @@
+import { randomInt, randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { authorizeRequest } from '@/lib/authz';
 import { db } from '@/lib/db';
-import { QuizSession, Question } from '@/types/quiz';
+import { Question, QuizSession } from '@/types/quiz';
 
 function generateRoomCode(): string {
-  const letters = 'QAIP';
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `${letters}-${num}`;
+  return `QAIP-${randomInt(1000, 10000)}`;
 }
 
 function selectSmartRandom(
@@ -14,26 +14,34 @@ function selectSmartRandom(
   categoryFilter?: string,
   difficultyFilter?: string
 ): Question[] {
-  let pool = all.filter(q => q.status === 'Published');
-  
+  let pool = all.filter(question => question.status === 'Published');
+
   if (categoryFilter && categoryFilter !== 'ALL') {
-    pool = pool.filter(q => q.category === categoryFilter);
+    pool = pool.filter(question => question.category === categoryFilter);
   }
   if (difficultyFilter && difficultyFilter !== 'ALL') {
-    pool = pool.filter(q => q.difficulty === difficultyFilter);
+    pool = pool.filter(question => question.difficulty === difficultyFilter);
   }
 
-  // Shuffle pool with Fisher-Yates
   const shuffled = [...pool];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = randomInt(index + 1);
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
   }
 
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
+function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
 export async function POST(req: NextRequest) {
+  const auth = authorizeRequest(req, ['SUPER_ADMIN', 'TRAINER']);
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await req.json();
     const {
@@ -47,65 +55,79 @@ export async function POST(req: NextRequest) {
       selected_question_ids = [],
       category_filter,
       difficulty_filter,
-      settings = {}
+      settings = {},
     } = body;
 
+    const requestedCount = clampNumber(question_count, 20, 1, 200);
     const allQuestions = db.getQuestions();
     let chosenQuestions: Question[] = [];
 
     if (selection_type === 'manual' && Array.isArray(selected_question_ids) && selected_question_ids.length > 0) {
-      chosenQuestions = allQuestions.filter(q => selected_question_ids.includes(q.question_id));
+      const selectedIds = new Set(selected_question_ids.filter((id: unknown) => typeof id === 'string'));
+      chosenQuestions = allQuestions.filter(question =>
+        question.status === 'Published' && selectedIds.has(question.question_id)
+      );
     } else {
-      chosenQuestions = selectSmartRandom(allQuestions, Number(question_count), category_filter, difficulty_filter);
+      chosenQuestions = selectSmartRandom(allQuestions, requestedCount, category_filter, difficulty_filter);
     }
 
     if (chosenQuestions.length === 0) {
-      return NextResponse.json({ success: false, error: 'Tidak ada soal yang terpilih' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Tidak ada soal Published yang memenuhi kriteria.' }, { status: 400 });
     }
 
     let roomCode = generateRoomCode();
-    while (db.getSessionByRoomCode(roomCode)) {
+    let attempts = 0;
+    while (db.getSessionByRoomCode(roomCode) && attempts < 20) {
       roomCode = generateRoomCode();
+      attempts += 1;
+    }
+    if (db.getSessionByRoomCode(roomCode)) {
+      return NextResponse.json({ success: false, error: 'Gagal menghasilkan room code unik.' }, { status: 503 });
     }
 
+    const now = new Date().toISOString();
     const newSession: QuizSession = {
-      session_id: 'sess-' + Date.now(),
+      session_id: `sess-${randomUUID()}`,
       room_code: roomCode,
-      title: title || 'QAIP Training Live Quiz',
-      training_name: training_name || 'QAIP & GIAS 2024 Certification Training',
-      trainer_name: trainer_name || 'Senior Lead Trainer',
-      description: description || 'Interactive training quiz session',
+      title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 150) : 'QAIP Training Live Quiz',
+      training_name: typeof training_name === 'string' && training_name.trim()
+        ? training_name.trim().slice(0, 150)
+        : 'QAIP & GIAS 2024 Certification Training',
+      trainer_name: typeof trainer_name === 'string' && trainer_name.trim()
+        ? trainer_name.trim().slice(0, 100)
+        : auth.user.name,
+      description: typeof description === 'string' ? description.trim().slice(0, 1000) : 'Interactive training quiz session',
       mode,
       status: 'WAITING',
       current_question_index: 0,
       question_started_at: 0,
       question_ends_at: 0,
       settings: {
-        time_per_question: Number(settings.time_per_question) || 20,
+        time_per_question: clampNumber(settings.time_per_question, 20, 5, 300),
         speed_bonus_enabled: settings.speed_bonus_enabled !== false,
         streak_bonus_enabled: settings.streak_bonus_enabled !== false,
         scoring_mode: settings.scoring_mode || 'STANDARD',
-        allow_answer_change: !!settings.allow_answer_change,
+        allow_answer_change: Boolean(settings.allow_answer_change),
         suspense_mode: settings.suspense_mode !== false,
-        passing_score: Number(settings.passing_score) || 75,
-        randomize_questions: !!settings.randomize_questions,
-        randomize_options: !!settings.randomize_options,
-        reveal_duration_seconds: Number(settings.reveal_duration_seconds) || 10,
-        show_explanation: settings.show_explanation !== false
+        passing_score: clampNumber(settings.passing_score, 75, 0, 100),
+        randomize_questions: Boolean(settings.randomize_questions),
+        randomize_options: Boolean(settings.randomize_options),
+        reveal_duration_seconds: clampNumber(settings.reveal_duration_seconds, 10, 3, 120),
+        show_explanation: settings.show_explanation !== false,
       },
       questions: chosenQuestions,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: now,
+      updated_at: now,
     };
 
     db.saveSession(newSession);
 
-    return NextResponse.json({
-      success: true,
-      data: newSession,
-      room_code: newSession.room_code
-    });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: true, data: newSession, room_code: newSession.room_code },
+      { status: 201, headers: { 'Cache-Control': 'no-store' } }
+    );
+  } catch (error) {
+    console.error('Create quiz error:', error);
+    return NextResponse.json({ success: false, error: 'Gagal membuat sesi quiz.' }, { status: 500 });
   }
 }
