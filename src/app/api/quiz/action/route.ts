@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authorizeRequest } from '@/lib/authz';
 import { db } from '@/lib/db';
 import { roomManager } from '@/lib/room-manager';
-import { toAnswerReceipt, toPublicParticipant, toPublicSession } from '@/lib/public-session';
+import { toPublicParticipant, toPublicSession } from '@/lib/public-session';
 
 const HOST_ACTIONS = new Set([
   'START',
@@ -66,14 +66,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Data jawaban tidak valid.' }, { status: 400 });
       }
 
-      const result = roomManager.submitAnswer(roomCode, participantId, selectedOption);
-      return NextResponse.json({
-        success: true,
-        data: {
-          answer: toAnswerReceipt(result.answer),
-          accepted: true,
-        },
-      });
+      roomManager.submitAnswer(roomCode, participantId, selectedOption);
+      // Deliberately do not return correctness/score before trainer reveals the answer.
+      return NextResponse.json({ success: true, accepted: true });
     }
 
     if (HOST_ACTIONS.has(action)) {
@@ -87,7 +82,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Aksi tidak dikenali.' }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Gagal memproses aksi quiz.';
-    const status = /tidak ditemukan|tidak valid|terkunci|tidak aktif|sudah/i.test(message) ? 400 : 500;
+    const status = /tidak ditemukan|tidak valid|terkunci|tidak aktif|sudah|hanya dapat/i.test(message) ? 400 : 500;
     return NextResponse.json({ success: false, error: message }, { status });
   }
 }
