@@ -4,14 +4,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Lock, User, ShieldCheck, UserCheck, LogIn, Sparkles,
+  Lock, User, ShieldCheck, UserCheck, LogIn,
   AlertCircle, ArrowRight
 } from 'lucide-react';
 import { UserRole } from '@/types/quiz';
 
 export default function LoginPage() {
   const router = useRouter();
-
   const [activeTab, setActiveTab] = useState<'TRAINER' | 'SUPER_ADMIN'>('TRAINER');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -25,36 +24,32 @@ export default function LoginPage() {
     setPassword('');
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
     setErrorMsg('');
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, requestedRole: activeTab }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
       if (!data.success) {
-        throw new Error(data.error || 'Login gagal, periksa username dan password');
+        throw new Error(data.error || 'Login gagal, periksa username dan password.');
       }
 
-      // Check role authorization
       const userRole: UserRole = data.data.user.role;
       if (activeTab === 'SUPER_ADMIN' && userRole !== 'SUPER_ADMIN') {
-        throw new Error('Akun ini tidak memiliki hak akses Super Admin');
+        throw new Error('Akun ini tidak memiliki hak akses Super Admin.');
       }
 
-      if (userRole === 'SUPER_ADMIN') {
-        router.push('/admin');
-      } else {
-        router.push('/trainer');
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Terjadi kesalahan saat login');
+      router.replace(userRole === 'SUPER_ADMIN' ? '/admin' : '/trainer');
+      router.refresh();
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Terjadi kesalahan saat login.');
     } finally {
       setLoading(false);
     }
@@ -63,18 +58,16 @@ export default function LoginPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-        
         <div className="text-center space-y-2">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 mx-auto flex items-center justify-center shadow-xl shadow-blue-500/30">
             <Lock className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-black text-white">PORTAL MASUK AKUN</h1>
           <p className="text-xs text-slate-400">
-            Pilih portal akses sesuai peran Anda (Trainer atau Super Admin)
+            Masuk menggunakan akun Trainer atau Super Admin yang telah dibuat secara resmi.
           </p>
         </div>
 
-        {/* Role Selector Tabs */}
         <div className="flex rounded-2xl bg-slate-950 p-1.5 border border-slate-800">
           <button
             type="button"
@@ -104,7 +97,7 @@ export default function LoginPage() {
         </div>
 
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2" role="alert">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -112,17 +105,19 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+            <label htmlFor="username" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
               Username
             </label>
             <div className="relative">
               <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               <input
+                id="username"
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(event) => setUsername(event.target.value)}
                 required
-                autoComplete="off"
+                autoComplete="username"
+                maxLength={40}
                 placeholder="Masukkan username"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
               />
@@ -130,32 +125,32 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+            <label htmlFor="password" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
               Password
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               <input
+                id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
                 required
-                autoComplete="new-password"
+                autoComplete="current-password"
                 placeholder="Masukkan password"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
               />
             </div>
           </div>
 
-          {/* Quick Demo Credentials Info */}
-          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400 text-center">
-            Akun Default: <strong className="text-slate-200">{activeTab === 'TRAINER' ? 'trainer / trainer123' : 'admin / admin123'}</strong>
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400 text-center leading-relaxed">
+            Kredensial demo/default telah dinonaktifkan. Jika belum memiliki akun, hubungi Super Admin sistem.
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3.5 rounded-xl font-black text-sm shadow-xl flex items-center justify-center gap-2 transition-all active:scale-98 ${
+            className={`w-full py-3.5 rounded-xl font-black text-sm shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed ${
               activeTab === 'TRAINER'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25'
                 : 'bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white shadow-rose-500/25'
@@ -172,11 +167,10 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Participant Info Banner */}
         <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center space-y-1">
           <p className="text-xs text-blue-300 font-bold">Apakah Anda Peserta Quiz?</p>
           <p className="text-[11px] text-slate-400">
-            Peserta <strong>tidak membutuhkan password</strong>. Cukup masukkan Room Code di halaman Join.
+            Peserta tidak membutuhkan akun staf. Gunakan Room Code dari trainer untuk bergabung.
           </p>
           <div className="pt-2">
             <Link
@@ -187,7 +181,6 @@ export default function LoginPage() {
             </Link>
           </div>
         </div>
-
       </div>
     </div>
   );
