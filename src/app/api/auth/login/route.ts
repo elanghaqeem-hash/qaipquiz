@@ -3,7 +3,20 @@ import { authService } from '@/lib/auth';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILED_ATTEMPTS = 5;
+const MAX_TRACKED_ATTEMPTS = 5000;
 const attempts = new Map<string, { count: number; firstAttemptAt: number }>();
+
+function cleanupAttempts(now: number): void {
+  for (const [key, state] of attempts) {
+    if (now - state.firstAttemptAt >= WINDOW_MS) attempts.delete(key);
+  }
+
+  while (attempts.size > MAX_TRACKED_ATTEMPTS) {
+    const oldestKey = attempts.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    attempts.delete(oldestKey);
+  }
+}
 
 function getClientKey(req: NextRequest, username: string): string {
   const forwardedFor = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
@@ -13,6 +26,8 @@ function getClientKey(req: NextRequest, username: string): string {
 
 function getAttemptState(key: string) {
   const now = Date.now();
+  cleanupAttempts(now);
+
   const state = attempts.get(key);
   if (!state || now - state.firstAttemptAt >= WINDOW_MS) {
     const fresh = { count: 0, firstAttemptAt: now };
@@ -29,9 +44,9 @@ export async function POST(req: NextRequest) {
     const password = typeof body.password === 'string' ? body.password : '';
     const requestedRole = body.requestedRole === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'TRAINER';
 
-    if (!username || !password) {
+    if (!username || !password || username.length > 40 || password.length > 256) {
       return NextResponse.json(
-        { success: false, error: 'Username dan password wajib diisi.' },
+        { success: false, error: 'Username atau password tidak valid.' },
         { status: 400, headers: { 'Cache-Control': 'no-store' } }
       );
     }
