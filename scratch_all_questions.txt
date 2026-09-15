@@ -1,0 +1,234 @@
+﻿SOAL 
+Soal 1
+Tujuan utama keberadaan fungsi audit intern pada bank adalah...
+A. Memastikan seluruh unit mencapai target bisnisB. Memberikan assurance dan advisory secara objektif untuk membantu meningkatkan tata kelola, manajemen risiko, dan pengendalianC. Mengambil alih tanggung jawab manajemen dalam mengelola risikoD. Menemukan sebanyak mungkin kesalahan pegawai
+Jawaban: B
+Rujukan: GIAS 2024 – Purpose of Internal Auditing; KEP-72/D.02/2024; SKKNI No. 215/2017.
+Soal 2
+Menurut kerangka kualifikasi Audit Intern Bank dalam KEP-72/D.02/2024, Kualifikasi 4 pada prinsipnya menggambarkan kompetensi untuk...
+A. Mengarahkan seluruh fungsi audit intern bankB. Mengelola strategi audit intern secara keseluruhanC. Melaksanakan penugasan audit/konsultasi sesuai kewenangan dan menyusun serta memantau hasilnyaD. Menetapkan kebijakan manajemen risiko bank
+Jawaban: C
+Soal 3
+Pada Kualifikasi 4, kompetensi inti antara lain mencakup...
+A. Menetapkan risk appetite bankB. Melaksanakan penugasan audit, melaporkan hasil audit, memantau tindak lanjut, dan melaksanakan penugasan konsultasiC. Menetapkan strategi bisnis bankD. Menetapkan kebijakan remunerasi
+Jawaban: B
+Soal 4
+Dalam konteks audit intern, assurance paling tepat diartikan sebagai...
+A. Jaminan bahwa bank tidak akan mengalami kerugianB. Penilaian objektif terhadap governance, risk management, dan control untuk memberikan keyakinan yang memadaiC. Persetujuan auditor terhadap seluruh keputusan manajemenD. Jaminan bahwa seluruh transaksi bank telah bebas fraud
+Jawaban: B
+Rujukan: GIAS 2024 – Purpose of Internal Auditing.
+Soal 5
+Manakah yang paling menggambarkan perbedaan antara audit intern dan fungsi operasional?
+A. Auditor intern bertanggung jawab menjalankan proses yang diauditB. Auditor intern memberikan penilaian/advice, sedangkan manajemen tetap bertanggung jawab atas pengelolaan risiko dan pengendalianC. Auditor intern memiliki kewenangan menggantikan kepala unitD. Auditor intern menentukan target bisnis auditee
+Jawaban: B
+Soal 6
+Prinsip integrity dalam GIAS paling tepat ditunjukkan dengan...
+A. Auditor selalu membela auditeeB. Auditor bertindak jujur, berani menyampaikan fakta, dan berperilaku profesionalC. Auditor hanya menyampaikan temuan yang disukai manajemenD. Auditor menghindari seluruh perbedaan pendapat
+Jawaban: B
+Rujukan: GIAS 2024 – Domain II, Principle 1: Demonstrate Integrity. 
+Soal 7
+Auditor menemukan kelemahan pengendalian yang signifikan. Kepala unit meminta agar temuan tersebut tidak dimasukkan ke laporan karena dapat menurunkan penilaian unit. Sikap auditor yang paling tepat adalah...
+A. Menghapus temuan untuk menjaga hubungan baikB. Mengurangi tingkat temuan tanpa dasarC. Mempertahankan kesimpulan berdasarkan bukti dan professional judgmentD. Menunggu sampai kepala unit menyetujui temuan
+Jawaban: C
+Rujukan: GIAS – Maintain Objectivity dan Demonstrate Integrity.
+Soal 8
+Objektivitas auditor paling terancam apabila auditor...
+A. Menggunakan data analitikB. Memiliki konflik kepentingan terhadap aktivitas yang diperiksaC. Melakukan wawancaraD. Membandingkan kondisi dengan kriteria
+Jawaban: B
+Soal 9
+Auditor ditugaskan mengaudit proses yang sebelumnya menjadi tanggung jawabnya selama enam bulan terakhir. Risiko profesional utama yang muncul adalah...
+A. Risiko samplingB. Risiko objektivitas/self-reviewC. Risiko likuiditasD. Risiko kredit
+Jawaban: B
+Rujukan: GIAS 2024 – Maintain Objectivity dan Positioned Independently. 
+Soal 10
+Apabila auditor mengetahui adanya potensi konflik kepentingan, tindakan yang paling tepat adalah...
+A. Menyembunyikannya selama auditor yakin dapat bersikap objektifB. Mengungkapkan konflik tersebut sesuai mekanisme yang berlakuC. Meminta auditee menyetujuinyaD. Tetap melanjutkan tanpa dokumentasi
+Jawaban: B
+B. ETIKA, KOMPETENSI, DUE PROFESSIONAL CARE
+Soal 11
+Due professional care paling tepat berarti auditor...
+A. Harus menemukan seluruh kesalahan tanpa pengecualianB. Melaksanakan pekerjaan dengan kecermatan, kehati-hatian, dan kompetensi yang sesuaiC. Harus selalu bekerja lemburD. Harus menggunakan seluruh prosedur audit yang tersedia
+Jawaban: B
+Rujukan: GIAS 2024 – Principle 4: Exercise Due Professional Care. 
+Soal 12
+Auditor tidak memiliki kompetensi teknis yang memadai untuk menilai suatu sistem IT yang kompleks. Tindakan paling tepat adalah...
+A. Tetap melakukan audit sendiri tanpa bantuanB. Mengabaikan area tersebutC. Memperoleh kompetensi/bantuan yang diperlukan sesuai mekanisme yang berlakuD. Mengandalkan asumsi pribadi
+Jawaban: C
+Rujukan: GIAS 2024 – Principle 3: Demonstrate Competency.
+Soal 13
+Auditor memperoleh data rahasia nasabah selama pemeriksaan. Data tersebut seharusnya...
+A. Dibagikan kepada auditor lain di luar penugasan tanpa batasB. Digunakan hanya sesuai kepentingan profesional dan dilindungi kerahasiaannyaC. Digunakan sebagai contoh dalam media sosialD. Diberikan kepada teman untuk dianalisis
+Jawaban: B
+Rujukan: GIAS 2024 – Principle 5: Maintain Confidentiality. 
+Soal 14
+Manakah yang paling tepat menggambarkan professional skepticism dalam pelaksanaan audit?
+A. Selalu menganggap auditee melakukan fraudB. Selalu mempercayai seluruh informasi auditeeC. Mempertahankan sikap kritis dan mengevaluasi bukti secara objektifD. Menolak seluruh penjelasan auditee
+Jawaban: C
+Soal 15
+Auditor menerima hadiah bernilai cukup besar dari auditee menjelang penerbitan laporan audit. Tindakan paling tepat adalah...
+A. Menerima karena tidak dimintaB. Menerima tetapi tidak memberi tahu siapa punC. Menolak/melaporkan sesuai kebijakan etika dan konflik kepentinganD. Menerima jika laporan audit sudah selesai
+Jawaban: C
+C. PERENCANAAN DAN RISK-BASED INTERNAL AUDIT
+Soal 16
+Dalam pendekatan risk-based internal audit, prioritas pemeriksaan seharusnya terutama mempertimbangkan...
+A. Area yang paling mudah diauditB. Area dengan risiko yang relevan dan signifikan terhadap pencapaian tujuan organisasiC. Area yang paling disukai auditorD. Area dengan jumlah pegawai paling banyak
+Jawaban: B
+Soal 17
+Tujuan utama risk assessment sebelum penugasan audit adalah...
+A. Menentukan siapa yang akan disalahkanB. Memahami risiko yang relevan sehingga tujuan, scope, dan prosedur audit dapat dirancang secara tepatC. Mengurangi jumlah auditorD. Menghapus seluruh risiko organisasi
+Jawaban: B
+Soal 18
+Dalam menyusun audit engagement plan, hal yang paling penting untuk ditetapkan adalah...
+A. Target penjualan auditeeB. Tujuan, scope, risiko, kriteria, sumber daya, dan prosedur audit yang relevanC. Besarnya bonus auditorD. Jumlah temuan yang harus ditemukan
+Jawaban: B
+Rujukan: GIAS 2024 – Principle 13: Plan Engagements Effectively. 
+Soal 19
+Jika selama preliminary assessment auditor menemukan risiko baru yang signifikan, auditor sebaiknya...
+A. Mengabaikannya karena tidak ada dalam audit program awalB. Mengevaluasi dampaknya dan menyesuaikan prosedur/scope bila diperlukanC. Menutup penugasanD. Menghapus risiko dari risk register
+Jawaban: B
+Soal 20
+Dalam menentukan sample transaksi, auditor seharusnya mempertimbangkan...
+A. Hanya jumlah transaksiB. Tujuan pengujian, karakteristik populasi, risiko, dan metodologi sampling yang sesuaiC. Transaksi yang paling mudah diperolehD. Transaksi yang dipilih oleh auditee
+Jawaban: B
+Soal 21
+Manakah yang merupakan contoh control risk?
+A. Bank memiliki risiko suku bungaB. Pengendalian otorisasi transaksi tidak berjalan efektif sehingga transaksi tidak sah dapat diprosesC. Nasabah mengalami gagal bayarD. Harga saham bank turun
+Jawaban: B
+Soal 22
+Auditor menemukan bahwa sebuah risiko memiliki dampak tinggi dan kemungkinan terjadi tinggi, sementara kontrol yang tersedia lemah. Area tersebut seharusnya...
+A. Menjadi prioritas perhatian auditB. Dikeluarkan dari scopeC. Dianggap tidak materialD. Diserahkan sepenuhnya kepada auditee tanpa evaluasi
+Jawaban: A
+D. PELAKSANAAN PENUGASAN AUDIT
+Soal 23
+Bukti audit yang baik harus...
+A. Selalu berasal dari auditeeB. Relevan dan cukup tepat untuk mendukung kesimpulan auditC. Selalu berbentuk dokumen fisikD. Berjumlah sebanyak mungkin
+Jawaban: B
+Soal 24
+Manakah bukti yang secara umum lebih kuat?
+A. Pernyataan lisan tanpa dokumentasiB. Bukti yang diperoleh auditor secara independen dan dapat diverifikasiC. Informasi dari pihak yang berkepentinganD. Perkiraan auditor
+Jawaban: B
+Soal 25
+Auditor melakukan pengujian terhadap 100 transaksi dan menemukan 8 transaksi menyimpang. Langkah berikutnya yang paling tepat adalah...
+A. Langsung menyatakan seluruh transaksi bermasalahB. Mengevaluasi sifat penyimpangan, pola, risiko, penyebab, dampak, dan kebutuhan pengujian tambahanC. Mengabaikan delapan transaksiD. Menyimpulkan fraud secara otomatis
+Jawaban: B
+Soal 26
+Dalam audit, criteria dalam temuan audit merupakan...
+A. Kondisi aktual yang ditemukan auditorB. Standar atau ukuran yang seharusnya dipenuhiC. Dampak dari kelemahanD. Rekomendasi auditor
+Jawaban: B
+Soal 27
+Dalam konsep temuan audit, condition merujuk pada...
+A. Keadaan aktual yang ditemukan auditorB. Penyebab terjadinya masalahC. Standar yang seharusnya berlakuD. Rencana tindak lanjut
+Jawaban: A
+Soal 28
+Auditor menemukan bahwa proses persetujuan kredit tidak sesuai ketentuan. Setelah ditelusuri, penyebab utamanya adalah petugas tidak memahami perubahan kebijakan yang baru diterbitkan. Dalam kondisi tersebut, "ketidakpahaman petugas" merupakan...
+A. CriteriaB. ConditionC. CauseD. Effect
+Jawaban: C
+Soal 29
+Jika akibat kelemahan kontrol bank mengalami potensi kerugian finansial, potensi kerugian tersebut merupakan...
+A. CriteriaB. ConditionC. CauseD. Effect/impact
+Jawaban: D
+Soal 30
+Auditor menemukan adanya transaksi tanpa otorisasi. Auditee menyatakan bahwa transaksi tersebut sebenarnya telah mendapat persetujuan lisan dari pejabat berwenang. Tindakan auditor yang paling tepat adalah...
+A. Langsung menerima penjelasanB. Mengabaikan transaksiC. Memperoleh bukti yang memadai untuk memverifikasi persetujuan tersebutD. Menyatakan fraud
+Jawaban: C
+Soal 31
+Tujuan utama dokumentasi/kertas kerja audit adalah...
+A. Menambah jumlah dokumenB. Mendukung bahwa pekerjaan audit telah direncanakan, dilaksanakan, direview, dan kesimpulannya didukung buktiC. Menggantikan laporan auditD. Menjadi arsip auditee
+Jawaban: B
+Soal 32
+Sebuah kertas kerja menyatakan "kontrol efektif", tetapi tidak mencantumkan prosedur pengujian maupun bukti pendukung. Kelemahan utama kertas kerja tersebut adalah...
+A. Terlalu detailB. Tidak mendukung kesimpulan secara memadaiC. Terlalu banyak buktiD. Tidak menggunakan warna
+Jawaban: B
+Soal 33
+Auditor menemukan indikasi fraud. Apa tindakan yang paling tepat?
+A. Langsung menyatakan individu tertentu sebagai pelakuB. Mengikuti prosedur internal terkait indikasi fraud, mengamankan bukti, dan melakukan eskalasi sesuai kewenanganC. Menghubungi mediaD. Menghapus data agar tidak menimbulkan masalah
+Jawaban: B
+Soal 34
+Manakah pernyataan yang paling tepat mengenai fraud risk?
+A. Fraud hanya menjadi tanggung jawab auditor internB. Auditor perlu mempertimbangkan risiko fraud dalam penugasan, sedangkan pencegahan dan pengelolaan fraud tetap menjadi tanggung jawab manajemen dan governanceC. Semua penyimpangan adalah fraudD. Auditor harus membuktikan setiap kasus fraud secara pidana
+Jawaban: B
+E. PELAPORAN HASIL AUDIT
+Soal 35
+Laporan hasil audit yang efektif seharusnya...
+A. Menggunakan bahasa emosionalB. Objektif, jelas, ringkas, konstruktif, dan didukung buktiC. Berisi sebanyak mungkin istilah teknisD. Hanya mencantumkan kesalahan
+Jawaban: B
+Rujukan: GIAS 2024 – Principle 14: Conduct Engagement Work dan Principle 15: Communicate Engagement Results and Monitor Action Plans. 
+Soal 36
+Sebelum laporan audit diterbitkan, auditor sebaiknya...
+A. Menghindari komunikasi dengan auditeeB. Melakukan klarifikasi fakta dan memperoleh respons manajemen sesuai proses yang berlakuC. Meminta auditee menghapus semua temuanD. Menyerahkan seluruh isi laporan kepada auditee untuk ditentukan
+Jawaban: B
+Soal 37
+Rekomendasi audit yang paling berkualitas adalah...
+A. "Harap diperbaiki."B. "Manajemen agar meningkatkan perhatian."C. Rekomendasi yang secara jelas mengarahkan tindakan perbaikan terhadap akar masalah dan dapat dipantauD. "Auditee harus bekerja lebih baik."
+Jawaban: C
+Soal 38
+Manajemen memberikan tanggapan terhadap temuan dengan menyatakan "akan diperbaiki", tetapi tidak mencantumkan action plan, PIC, dan target waktu. Apa yang sebaiknya dilakukan auditor?
+A. Langsung menyatakan tindak lanjut selesaiB. Meminta rencana tindakan yang cukup jelas untuk dapat dipantauC. Menghapus temuanD. Menetapkan sendiri seluruh action plan manajemen
+Jawaban: B
+F. MONITORING TINDAK LANJUT
+Soal 39
+Tujuan utama follow-up audit adalah...
+A. Mencari kesalahan baru sebanyak mungkinB. Memastikan tindakan perbaikan telah dilaksanakan dan efektif sesuai kesepakatanC. Menggantikan tugas manajemenD. Membuka kembali semua audit lama tanpa alasan
+Jawaban: B
+Soal 40
+Manajemen menyatakan suatu rekomendasi telah selesai. Auditor menemukan bahwa tindakan hanya berupa pembuatan SOP baru, tetapi tidak ada bukti implementasi. Status yang paling tepat adalah...
+A. Closed otomatisB. Perlu diverifikasi lebih lanjutC. Tidak perlu diperhatikanD. Fraud
+Jawaban: B
+Soal 41
+Manajemen telah melakukan tindakan korektif, tetapi risiko residual masih tinggi. Auditor sebaiknya...
+A. Menyatakan seluruh masalah selesaiB. Mengevaluasi kecukupan dan efektivitas tindakan serta mengomunikasikan kondisi tersebut sesuai mekanisme eskalasiC. Menghapus temuanD. Mengubah bukti audit
+Jawaban: B
+Soal 42
+Dalam GIAS 2024, komunikasi hasil engagement dan monitoring action plans termasuk dalam prinsip...
+A. Principle 8B. Principle 10C. Principle 13D. Principle 15
+Jawaban: D
+GIAS 2024 menempatkan “Communicate Engagement Results and Monitor Action Plans” sebagai Principle 15. 
+G. PENUGASAN KONSULTASI
+Soal 43
+Dalam penugasan konsultasi, auditor internal harus...
+A. Mengambil keputusan manajemenB. Menjaga objektivitas dan tidak mengambil alih tanggung jawab manajemenC. Menjadi pemilik risikoD. Menyetujui seluruh keputusan bisnis
+Jawaban: B
+Soal 44
+Unit bisnis meminta auditor internal memberikan masukan mengenai rancangan pengendalian untuk produk baru. Auditor dapat...
+A. Memberikan advice sesuai ruang lingkup yang disepakati dengan tetap menjaga independensi dan objektivitasB. Menjadi pemilik produkC. Menyetujui produk untuk diluncurkanD. Menjamin produk tidak akan menimbulkan risiko
+Jawaban: A
+Soal 45
+Perbedaan paling mendasar antara assurance dan advisory adalah...
+A. Assurance selalu lebih penting daripada advisoryB. Assurance memberikan penilaian/keyakinan objektif, sedangkan advisory memberikan advice/insight tanpa mengambil alih tanggung jawab manajemenC. Advisory tidak membutuhkan dokumentasiD. Assurance hanya dilakukan untuk fraud
+Jawaban: B
+H. SUPERVISI, QUALITY DAN PROFESSIONAL JUDGMENT
+Soal 46
+Seorang auditor junior menyusun kesimpulan bahwa kontrol tidak efektif, tetapi supervisor menemukan bahwa pengujian belum cukup. Tindakan supervisor yang paling tepat adalah...
+A. Menyetujui kesimpulan agar audit cepat selesaiB. Meminta auditor melengkapi prosedur dan bukti sebelum kesimpulan difinalisasiC. Menghapus seluruh pekerjaan auditorD. Mengubah kesimpulan tanpa bukti
+Jawaban: B
+Soal 47
+Quality assurance dalam audit intern terutama bertujuan untuk...
+A. Meningkatkan jumlah temuanB. Memastikan aktivitas audit intern dilaksanakan sesuai standar, metodologi, dan prinsip profesional serta terus ditingkatkanC. Mengurangi jumlah auditorD. Memastikan semua auditee memperoleh hasil audit "baik"
+Jawaban: B
+Rujukan: GIAS 2024 – Principle 12: Enhance Quality. 
+Soal 48
+Auditor menghadapi dua bukti yang bertentangan. Bukti A berasal dari dokumen internal, sedangkan Bukti B berasal dari sistem sumber yang dapat diverifikasi secara independen. Auditor sebaiknya...
+A. Memilih bukti yang mendukung kesimpulan awalB. Mengevaluasi reliabilitas kedua bukti dan melakukan prosedur tambahan bila diperlukanC. Mengabaikan Bukti BD. Meminta auditee memilih bukti
+Jawaban: B
+I. CASE-BASED / HIGHER ORDER THINKING
+Soal 49
+Dalam audit proses kredit, auditor menemukan:
+15% sampel dokumen tidak lengkap;
+sebagian besar transaksi tersebut tetap memperoleh persetujuan;
+terdapat kelemahan maker-checker;
+tidak ditemukan kerugian aktual;
+namun terdapat potensi kerugian dan risiko kepatuhan.
+Kesimpulan auditor yang paling tepat adalah...
+A. Tidak ada temuan karena belum terjadi kerugianB. Temuan harus langsung dikategorikan fraudC. Auditor perlu mengevaluasi desain dan efektivitas kontrol, akar penyebab, dampak/potensi dampak, dan tingkat risikonyaD. Seluruh transaksi kredit harus dinyatakan tidak sah
+Jawaban: C
+Rujukan: GIAS 2024 – Exercise Due Professional Care, Plan Engagements Effectively, Conduct Engagement Work; SKKNI 215/2017.
+Soal 50
+Auditor menemukan kelemahan pengendalian yang berulang pada tiga cabang. Manajemen masing-masing cabang telah melakukan perbaikan lokal. Namun, penyebab utama ternyata berasal dari kebijakan dan sistem yang ditetapkan kantor pusat.
+Tindakan auditor yang paling tepat adalah...
+A. Menutup seluruh temuan karena cabang telah melakukan perbaikanB. Memfokuskan analisis pada akar masalah di tingkat kantor pusat dan mengevaluasi apakah diperlukan tindakan perbaikan yang bersifat enterprise-wideC. Menyalahkan seluruh kepala cabangD. Mengabaikan temuan karena tidak terdapat kerugian aktual
+Jawaban: B
+Rujukan: GIAS 2024 – Conduct Engagement Work, Communicate Engagement Results and Monitor Action Plans; SKKNI 215/2017; KEP-72/D.02/2024.
+KUNCI JAWABAN 50 SOAL
+KISI-KISI 50 SOAL
+PEMETAAN TERHADAP GIAS 2024 
+NILAI PRE-TEST
