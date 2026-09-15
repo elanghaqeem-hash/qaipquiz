@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/authorize';
+import { sessionForClient } from '@/lib/public-session';
 import { roomManager } from '@/lib/room-manager';
 import { QuizSession } from '@/types/quiz';
 
@@ -23,12 +25,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const roomCode = searchParams.get('roomCode');
   const clientId = searchParams.get('clientId') || ('client-' + Math.random().toString(36).slice(2, 9));
-
   if (!roomCode) return new Response('Room code parameter required', { status: 400 });
 
   const session = await db.getSessionByRoomCode(roomCode);
   if (!session) return new Response('Sesi quiz tidak ditemukan', { status: 404 });
 
+  const user = await getAuthenticatedUser(req);
+  const privileged = Boolean(user && ['SUPER_ADMIN', 'TRAINER'].includes(user.role));
   const participants = await db.getParticipants(session.session_id);
   const answers = await db.getAnswers(session.session_id);
   const encoder = new TextEncoder();
@@ -46,22 +49,21 @@ export async function GET(req: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      const send = (event: string, payload: unknown) => {
+      const send = (event: string, payload: any) => {
         if (closed) return;
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event, payload })}\n\n`));
+          const safePayload = payload?.session
+            ? { ...payload, session: sessionForClient(payload.session, privileged) }
+            : payload;
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event, payload: safePayload })}\n\n`));
         } catch {
           closed = true;
         }
       };
 
       send('INIT_STATE', { session, participants, serverTime: Date.now() });
-
-      // Same-isolate fast path.
       unsubscribe = roomManager.subscribe(roomCode, clientId, data => send(data.event, data.payload));
 
-      // Storage-backed synchronization is the source of truth and works even
-      // when host and participants are routed to different Worker isolates.
       pollTimer = setInterval(async () => {
         if (closed || polling) return;
         polling = true;
@@ -72,26 +74,18 @@ export async function GET(req: NextRequest) {
           const freshAnswers = await db.getAnswers(freshSession.session_id);
           const action = inferAction(lastSession, freshSession);
           const participantSignature = JSON.stringify(freshParticipants.map(p => [p.id, p.total_score, p.rank, p.last_active]));
-          const sessionChanged = JSON.stringify([
-            lastSession.status,
-            lastSession.current_question_index,
-            lastSession.question_started_at,
-            lastSession.question_ends_at,
-            lastSession.updated_at,
-          ]) !== JSON.stringify([
-            freshSession.status,
-            freshSession.current_question_index,
-            freshSession.question_started_at,
-            freshSession.question_ends_at,
-            freshSession.updated_at,
+          const sessionSignature = (value: QuizSession) => JSON.stringify([
+            value.status,
+            value.current_question_index,
+            value.question_started_at,
+            value.question_ends_at,
+            value.updated_at,
           ]);
 
           const newParticipant = freshParticipants.find(p => !lastParticipantIds.has(p.id));
-          if (newParticipant) {
-            send('PARTICIPANT_JOINED', { participants: freshParticipants, newParticipant });
-          }
+          if (newParticipant) send('PARTICIPANT_JOINED', { participants: freshParticipants, newParticipant });
 
-          if (sessionChanged || participantSignature !== lastParticipantSignature) {
+          if (sessionSignature(lastSession) !== sessionSignature(freshSession) || participantSignature !== lastParticipantSignature) {
             const q = freshSession.questions[freshSession.current_question_index];
             const distribution = q ? await roomManager.getAnswerDistribution(freshSession.session_id, q.question_id) : null;
             send('STATE_CHANGE', { session: freshSession, action, participants: freshParticipants, distribution });
@@ -102,10 +96,7 @@ export async function GET(req: NextRequest) {
             ? freshAnswers.filter(a => a.question_id === currentQuestion!.question_id).length
             : 0;
           if (answerCount !== lastAnswerCount) {
-            send('ANSWER_SUBMITTED', {
-              answeredCount: answerCount,
-              totalParticipants: freshParticipants.length,
-            });
+            send('ANSWER_SUBMITTED', { answeredCount: answerCount, totalParticipants: freshParticipants.length });
           }
 
           lastSession = freshSession;
