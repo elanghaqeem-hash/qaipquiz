@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 .pnp
 .pnp.js
@@ -9,9 +9,15 @@ out/
 build/
 dist/
 
-# Environment
+# Environment / secrets
 .env
-.env*.local
+.env.*
+!.env.example
+
+# Runtime application data (seed data remains versioned)
+data/db.json
+data/users.json
+data/*.tmp
 
 # Office temporary files
 ~$*.docx
@@ -19,5 +25,15 @@ dist/
 ~$*.pptx
 *.tmp
 
-# Sync logs
-auto_sync.log
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
