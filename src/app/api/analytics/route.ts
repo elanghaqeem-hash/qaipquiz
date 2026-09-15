@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireRole } from '@/lib/authorize';
 import { CompetencyScore } from '@/types/quiz';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    if (!(await requireRole(req, ['SUPER_ADMIN', 'TRAINER']))) {
+      return NextResponse.json({ success: false, error: 'Akses ditolak' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId');
 
@@ -61,7 +66,6 @@ export async function GET(req: NextRequest) {
       session.questions.forEach(q => {
         if (!categoryMap.has(q.category)) categoryMap.set(q.category, { total: 0, correct: 0 });
       });
-
       answers.forEach(a => {
         const q = session.questions.find(item => item.question_id === a.question_id);
         if (q && categoryMap.has(q.category)) {
@@ -108,7 +112,6 @@ export async function GET(req: NextRequest) {
       db.getParticipants(),
       db.getAnswers(),
     ]);
-
     const avgScore = allParticipants.length > 0
       ? Math.round(allParticipants.reduce((sum, p) => sum + p.total_score, 0) / allParticipants.length)
       : 0;
