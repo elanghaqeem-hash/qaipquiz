@@ -4,7 +4,7 @@ import { getAuthenticatedUser } from '@/lib/authz';
 import { db } from '@/lib/db';
 import {
   canRevealParticipantAnswer,
-  toPublicParticipants,
+  toPublicParticipantsForSession,
   toPublicSession,
 } from '@/lib/public-session';
 
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
         success: true,
         data: {
           session: toPublicSession(session),
-          participants: toPublicParticipants(participants),
+          participants: toPublicParticipantsForSession(participants, session, answers),
           answersCount: answers.length,
           totalQuestions: session.questions.length,
           myAnswer,
