@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Question, QuizSession, Participant, ParticipantAnswer, QuizTemplate } from '@/types/quiz';
+import { Participant, ParticipantAnswer, Question, QuizSession, QuizTemplate } from '@/types/quiz';
 
 interface DatabaseData {
   questions: Question[];
@@ -10,23 +10,11 @@ interface DatabaseData {
   templates: QuizTemplate[];
 }
 
-const DB_FILE = path.join(process.cwd(), 'data', 'db.json');
+const DATA_DIR = process.env.QAIP_DATA_DIR || path.join(process.cwd(), 'data');
+const DB_FILE = path.join(DATA_DIR, 'db.json');
 const SEED_FILE = path.join(process.cwd(), 'data', 'seed-questions.json');
 
-// In-memory cache for high performance real-time access
 let cachedData: DatabaseData | null = null;
-
-function loadSeedQuestions(): Question[] {
-  try {
-    if (fs.existsSync(SEED_FILE)) {
-      const raw = fs.readFileSync(SEED_FILE, 'utf8');
-      return JSON.parse(raw);
-    }
-  } catch (err) {
-    console.error('Failed to load seed questions:', err);
-  }
-  return [];
-}
 
 const defaultTemplates: QuizTemplate[] = [
   {
@@ -36,26 +24,26 @@ const defaultTemplates: QuizTemplate[] = [
     mode: 'PRE_TEST',
     question_count: 20,
     default_time_limit: 20,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   },
   {
     template_id: 'tmpl-02',
     title: 'GIAS 2024 Comprehensive Assessment (50 Soal)',
-    description: 'Ujian komprehensif mencakup seluruh 10 area kompetensi Audit Intern Bank.',
+    description: 'Ujian komprehensif mencakup seluruh area kompetensi Audit Intern Bank.',
     mode: 'LIVE_COMPETITION',
     question_count: 50,
     default_time_limit: 25,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   },
   {
     template_id: 'tmpl-03',
     title: 'Audit Execution & Evidence Challenge (15 Soal)',
-    description: 'Fokus pada teknik pembuktian audit, atribut temuan (5C), sampling, dan kertas kerja.',
+    description: 'Fokus pada teknik pembuktian audit, atribut temuan, sampling, dan kertas kerja.',
     mode: 'TEAM_BATTLE',
     question_count: 15,
     category_filter: 'Pelaksanaan Penugasan Audit',
     default_time_limit: 25,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   },
   {
     template_id: 'tmpl-04',
@@ -64,186 +52,176 @@ const defaultTemplates: QuizTemplate[] = [
     mode: 'POST_TEST',
     question_count: 20,
     default_time_limit: 20,
-    created_at: new Date().toISOString()
-  }
+    created_at: new Date().toISOString(),
+  },
 ];
+
+function ensureDataDir(): void {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function loadSeedQuestions(): Question[] {
+  try {
+    if (!fs.existsSync(SEED_FILE)) return [];
+    const raw = fs.readFileSync(SEED_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Failed to load seed questions:', error);
+    return [];
+  }
+}
+
+function normalizeDatabase(value: Partial<DatabaseData>): DatabaseData {
+  return {
+    questions: Array.isArray(value.questions) && value.questions.length > 0
+      ? value.questions
+      : loadSeedQuestions(),
+    sessions: Array.isArray(value.sessions) ? value.sessions : [],
+    participants: Array.isArray(value.participants) ? value.participants : [],
+    answers: Array.isArray(value.answers) ? value.answers : [],
+    templates: Array.isArray(value.templates) && value.templates.length > 0
+      ? value.templates
+      : defaultTemplates,
+  };
+}
+
+function writeDatabase(data: DatabaseData): void {
+  ensureDataDir();
+  const tempFile = `${DB_FILE}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf8');
+  fs.renameSync(tempFile, DB_FILE);
+}
 
 function initDatabase(): DatabaseData {
   if (fs.existsSync(DB_FILE)) {
     try {
       const raw = fs.readFileSync(DB_FILE, 'utf8');
-      const data = JSON.parse(raw) as DatabaseData;
-      if (!data.questions || data.questions.length === 0) {
-        data.questions = loadSeedQuestions();
-      }
-      if (!data.templates || data.templates.length === 0) {
-        data.templates = defaultTemplates;
-      }
-      return data;
-    } catch (err) {
-      console.error('Failed to parse db.json, recreating...', err);
+      return normalizeDatabase(JSON.parse(raw));
+    } catch (error) {
+      console.error('Failed to parse runtime db.json. Reinitializing from seed:', error);
     }
   }
 
-  const initial: DatabaseData = {
-    questions: loadSeedQuestions(),
-    sessions: [],
-    participants: [],
-    answers: [],
-    templates: defaultTemplates,
-  };
-
+  const initial = normalizeDatabase({});
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf8');
-  } catch (err) {
-    console.error('Error saving db.json:', err);
+    writeDatabase(initial);
+  } catch (error) {
+    console.error('Unable to initialize runtime database:', error);
   }
-
   return initial;
 }
 
 function getDb(): DatabaseData {
-  if (!cachedData) {
-    cachedData = initDatabase();
-  }
+  if (!cachedData) cachedData = initDatabase();
   return cachedData;
 }
 
 function persistDb(): void {
-  if (cachedData) {
-    try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(cachedData, null, 2), 'utf8');
-    } catch (err) {
-      console.error('Failed to persist db.json:', err);
-    }
+  if (!cachedData) return;
+  try {
+    writeDatabase(cachedData);
+  } catch (error) {
+    console.error('Failed to persist runtime database:', error);
+    throw new Error('Penyimpanan data quiz gagal. Periksa storage aplikasi.');
   }
 }
 
 export const db = {
-  // Questions
-  getQuestions: (): Question[] => {
-    return getDb().questions;
-  },
+  getQuestions: (): Question[] => getDb().questions,
 
-  getQuestionById: (id: string): Question | undefined => {
-    return getDb().questions.find(q => q.question_id === id || q.question_code === id);
-  },
+  getQuestionById: (id: string): Question | undefined =>
+    getDb().questions.find(question => question.question_id === id || question.question_code === id),
 
   saveQuestion: (question: Question): Question => {
     const data = getDb();
-    const idx = data.questions.findIndex(q => q.question_id === question.question_id);
-    if (idx >= 0) {
-      data.questions[idx] = { ...question, updated_at: new Date().toISOString() };
-    } else {
-      data.questions.push({ ...question, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
-    }
+    const index = data.questions.findIndex(item => item.question_id === question.question_id);
+    const now = new Date().toISOString();
+    const stored = index >= 0
+      ? { ...data.questions[index], ...question, updated_at: now }
+      : { ...question, created_at: question.created_at || now, updated_at: now };
+
+    if (index >= 0) data.questions[index] = stored;
+    else data.questions.push(stored);
+
     persistDb();
-    return question;
+    return stored;
   },
 
   deleteQuestion: (id: string): boolean => {
     const data = getDb();
-    const idx = data.questions.findIndex(q => q.question_id === id);
-    if (idx >= 0) {
-      data.questions.splice(idx, 1);
-      persistDb();
-      return true;
-    }
-    return false;
+    const index = data.questions.findIndex(question => question.question_id === id);
+    if (index < 0) return false;
+    data.questions.splice(index, 1);
+    persistDb();
+    return true;
   },
 
-  // Sessions
-  getSessions: (): QuizSession[] => {
-    return getDb().sessions;
-  },
+  getSessions: (): QuizSession[] => getDb().sessions,
 
-  getSessionByRoomCode: (roomCode: string): QuizSession | undefined => {
-    return getDb().sessions.find(s => s.room_code.toUpperCase() === roomCode.toUpperCase());
-  },
+  getSessionByRoomCode: (roomCode: string): QuizSession | undefined =>
+    getDb().sessions.find(session => session.room_code.toUpperCase() === roomCode.toUpperCase()),
 
-  getSessionById: (sessionId: string): QuizSession | undefined => {
-    return getDb().sessions.find(s => s.session_id === sessionId);
-  },
+  getSessionById: (sessionId: string): QuizSession | undefined =>
+    getDb().sessions.find(session => session.session_id === sessionId),
 
   saveSession: (session: QuizSession): QuizSession => {
     const data = getDb();
-    const idx = data.sessions.findIndex(s => s.session_id === session.session_id);
-    if (idx >= 0) {
-      data.sessions[idx] = { ...session, updated_at: new Date().toISOString() };
-    } else {
-      data.sessions.push({ ...session, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
-    }
+    const index = data.sessions.findIndex(item => item.session_id === session.session_id);
+    const now = new Date().toISOString();
+    const stored = index >= 0
+      ? { ...data.sessions[index], ...session, updated_at: now }
+      : { ...session, created_at: session.created_at || now, updated_at: now };
+
+    if (index >= 0) data.sessions[index] = stored;
+    else data.sessions.push(stored);
+
     persistDb();
-    return session;
+    return stored;
   },
 
-  // Participants
   getParticipants: (sessionId?: string): Participant[] => {
-    const data = getDb();
-    if (sessionId) {
-      return data.participants.filter(p => p.session_id === sessionId);
-    }
-    return data.participants;
+    const participants = getDb().participants;
+    return sessionId ? participants.filter(participant => participant.session_id === sessionId) : participants;
   },
 
-  getParticipantById: (id: string): Participant | undefined => {
-    return getDb().participants.find(p => p.id === id);
-  },
+  getParticipantById: (id: string): Participant | undefined =>
+    getDb().participants.find(participant => participant.id === id),
 
   saveParticipant: (participant: Participant): Participant => {
     const data = getDb();
-    const idx = data.participants.findIndex(p => p.id === participant.id);
-    if (idx >= 0) {
-      data.participants[idx] = participant;
-    } else {
-      data.participants.push(participant);
-    }
+    const index = data.participants.findIndex(item => item.id === participant.id);
+    if (index >= 0) data.participants[index] = participant;
+    else data.participants.push(participant);
     persistDb();
     return participant;
   },
 
-  // Answers
   getAnswers: (sessionId?: string, participantId?: string): ParticipantAnswer[] => {
     let answers = getDb().answers;
-    if (sessionId) {
-      answers = answers.filter(a => a.session_id === sessionId);
-    }
-    if (participantId) {
-      answers = answers.filter(a => a.participant_id === participantId);
-    }
+    if (sessionId) answers = answers.filter(answer => answer.session_id === sessionId);
+    if (participantId) answers = answers.filter(answer => answer.participant_id === participantId);
     return answers;
   },
 
   saveAnswer: (answer: ParticipantAnswer): ParticipantAnswer => {
     const data = getDb();
-    const idx = data.answers.findIndex(a => 
-      a.session_id === answer.session_id && 
-      a.participant_id === answer.participant_id && 
-      a.question_id === answer.question_id
+    const index = data.answers.findIndex(item =>
+      item.session_id === answer.session_id &&
+      item.participant_id === answer.participant_id &&
+      item.question_id === answer.question_id
     );
-    if (idx >= 0) {
-      data.answers[idx] = answer;
-    } else {
-      data.answers.push(answer);
-    }
+
+    if (index >= 0) data.answers[index] = answer;
+    else data.answers.push(answer);
     persistDb();
     return answer;
   },
 
-  // Templates
-  getTemplates: (): QuizTemplate[] => {
-    return getDb().templates;
-  },
+  getTemplates: (): QuizTemplate[] => getDb().templates,
 
-  // Reset database with fresh seed
   resetToSeed: (): void => {
-    cachedData = {
-      questions: loadSeedQuestions(),
-      sessions: [],
-      participants: [],
-      answers: [],
-      templates: defaultTemplates,
-    };
+    cachedData = normalizeDatabase({});
     persistDb();
-  }
+  },
 };
