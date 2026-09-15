@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authService } from '@/lib/auth';
 import { getAuthenticatedUser } from '@/lib/authz';
 import { db } from '@/lib/db';
 import {
@@ -12,7 +13,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const roomCode = searchParams.get('roomCode')?.trim();
     const sessionId = searchParams.get('sessionId')?.trim();
-    const participantId = searchParams.get('participantId')?.trim();
 
     let session = roomCode ? db.getSessionByRoomCode(roomCode) : undefined;
     if (!session && sessionId) {
@@ -44,12 +44,18 @@ export async function GET(req: NextRequest) {
     }
 
     let myAnswer = null;
-    if (participantId && canRevealParticipantAnswer(session)) {
-      const participant = db.getParticipantById(participantId);
+    const participantToken = req.cookies.get('tqa_participant_token')?.value;
+    const participantAuth = participantToken ? authService.verifyParticipantToken(participantToken) : null;
+
+    if (
+      participantAuth?.sessionId === session.session_id &&
+      canRevealParticipantAnswer(session)
+    ) {
+      const participant = db.getParticipantById(participantAuth.participantId);
       const currentQuestion = session.questions[session.current_question_index];
       if (participant?.session_id === session.session_id && currentQuestion) {
         myAnswer = answers.find(answer =>
-          answer.participant_id === participantId && answer.question_id === currentQuestion.question_id
+          answer.participant_id === participantAuth.participantId && answer.question_id === currentQuestion.question_id
         ) || null;
       }
     }
