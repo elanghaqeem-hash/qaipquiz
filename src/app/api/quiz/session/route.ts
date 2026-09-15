@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/authorize';
+import { sessionForClient } from '@/lib/public-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +17,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Sesi quiz tidak ditemukan' }, { status: 404 });
     }
 
+    const user = await getAuthenticatedUser(req);
+    const privileged = Boolean(user && ['SUPER_ADMIN', 'TRAINER'].includes(user.role));
     const [participants, answers] = await Promise.all([
       db.getParticipants(session.session_id),
       db.getAnswers(session.session_id),
@@ -23,7 +27,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        session,
+        session: sessionForClient(session, privileged),
         participants,
         answersCount: answers.length,
         totalQuestions: session.questions.length,
