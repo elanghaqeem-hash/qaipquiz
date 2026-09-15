@@ -66,16 +66,54 @@ export function toPublicParticipants(participants: Participant[]): PublicPartici
   return participants.map(toPublicParticipant);
 }
 
-export function toAnswerReceipt(answer: ParticipantAnswer) {
+function buildVisibleMetrics(participant: Participant, answers: ParticipantAnswer[]) {
+  const ordered = answers
+    .filter(answer => answer.participant_id === participant.id)
+    .slice()
+    .sort((a, b) => a.question_index - b.question_index || a.submitted_at - b.submitted_at);
+
+  let streak = 0;
+  let maxStreak = 0;
+  for (const answer of ordered) {
+    streak = answer.is_correct ? streak + 1 : 0;
+    maxStreak = Math.max(maxStreak, streak);
+  }
+
   return {
-    id: answer.id,
-    participant_id: answer.participant_id,
-    question_id: answer.question_id,
-    question_index: answer.question_index,
-    selected_option: answer.selected_option,
-    submitted_at: answer.submitted_at,
-    accepted: true,
+    total_score: ordered.reduce((sum, answer) => sum + answer.score, 0),
+    total_correct: ordered.filter(answer => answer.is_correct).length,
+    total_wrong: ordered.filter(answer => !answer.is_correct && answer.is_timeout !== true).length,
+    total_timeout: ordered.filter(answer => answer.is_timeout === true).length,
+    total_response_time_ms: ordered.reduce((sum, answer) => sum + answer.response_time_ms, 0),
+    fastest_response_ms: ordered.length > 0
+      ? Math.min(...ordered.map(answer => answer.response_time_ms))
+      : 0,
+    streak,
+    max_streak: maxStreak,
   };
+}
+
+/**
+ * Public participant state must not reveal whether the active answer was correct.
+ * While a question is active/paused, expose metrics computed only from previous questions.
+ */
+export function toPublicParticipantsForSession(
+  participants: Participant[],
+  session: QuizSession,
+  answers: ParticipantAnswer[]
+): PublicParticipant[] {
+  if (REVEAL_STATUSES.has(session.status) || session.status === 'WAITING') {
+    return toPublicParticipants(participants);
+  }
+
+  const currentQuestion = session.questions[session.current_question_index];
+  if (!currentQuestion) return toPublicParticipants(participants);
+
+  const visibleAnswers = answers.filter(answer => answer.question_id !== currentQuestion.question_id);
+  return participants.map(participant => ({
+    ...toPublicParticipant(participant),
+    ...buildVisibleMetrics(participant, visibleAnswers),
+  }));
 }
 
 export function canRevealParticipantAnswer(session: QuizSession): boolean {
