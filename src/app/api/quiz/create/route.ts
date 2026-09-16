@@ -44,8 +44,11 @@ export async function POST(req: NextRequest) {
     const mode: QuizMode = QUIZ_MODES.has(requestedMode) ? requestedMode : 'LIVE_COMPETITION';
     const selectionType = body?.selection_type === 'manual' ? 'manual' : 'random';
     const questionCount = Math.min(100, Math.max(1, Number(body?.question_count) || 20));
-    const selectedIds = Array.isArray(body?.selected_question_ids)
-      ? [...new Set(body.selected_question_ids.map((id: unknown) => String(id)).filter(Boolean))].slice(0, 100)
+    const selectedIds: string[] = Array.isArray(body?.selected_question_ids)
+      ? body.selected_question_ids
+          .map((id: unknown) => String(id).trim())
+          .filter((id: string, index: number, all: string[]) => Boolean(id) && all.indexOf(id) === index)
+          .slice(0, 100)
       : [];
     const categoryFilter = cleanText(body?.category_filter, '', 200);
     const difficultyFilter = cleanText(body?.difficulty_filter, '', 80);
