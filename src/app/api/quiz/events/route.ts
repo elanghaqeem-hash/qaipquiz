@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/authorize';
-import { sessionForClient } from '@/lib/public-session';
+import { verifyParticipantToken } from '@/lib/participant-auth';
+import { participantsForClient, sessionForClient } from '@/lib/public-session';
 import { roomManager } from '@/lib/room-manager';
 import { QuizSession } from '@/types/quiz';
 
@@ -23,8 +24,8 @@ function inferAction(previous: QuizSession, current: QuizSession): string {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const roomCode = searchParams.get('roomCode');
-  const clientId = searchParams.get('clientId') || ('client-' + Math.random().toString(36).slice(2, 9));
+  const roomCode = searchParams.get('roomCode')?.trim().toUpperCase();
+  const clientId = searchParams.get('clientId')?.trim() || ('client-' + crypto.randomUUID());
   if (!roomCode) return new Response('Room code parameter required', { status: 400 });
 
   const session = await db.getSessionByRoomCode(roomCode);
@@ -32,6 +33,17 @@ export async function GET(req: NextRequest) {
 
   const user = await getAuthenticatedUser(req);
   const privileged = Boolean(user && ['SUPER_ADMIN', 'TRAINER'].includes(user.role));
+
+  if (!privileged) {
+    const token = req.cookies.get('tqa_participant_token')?.value;
+    const participantAuth = token
+      ? await verifyParticipantToken(token, { participantId: clientId, sessionId: session.session_id, roomCode })
+      : null;
+    if (!participantAuth) {
+      return new Response('Participant session is invalid or expired. Please rejoin the quiz.', { status: 401 });
+    }
+  }
+
   const participants = await db.getParticipants(session.session_id);
   const answers = await db.getAnswers(session.session_id);
   const encoder = new TextEncoder();
@@ -52,9 +64,19 @@ export async function GET(req: NextRequest) {
       const send = (event: string, payload: any) => {
         if (closed) return;
         try {
-          const safePayload = payload?.session
-            ? { ...payload, session: sessionForClient(payload.session, privileged) }
-            : payload;
+          let safePayload = payload;
+          if (payload && typeof payload === 'object') {
+            safePayload = { ...payload };
+            if (safePayload.session) {
+              safePayload.session = sessionForClient(safePayload.session, privileged);
+            }
+            if (Array.isArray(safePayload.participants)) {
+              safePayload.participants = participantsForClient(safePayload.participants, privileged);
+            }
+            if (safePayload.newParticipant && !privileged) {
+              safePayload.newParticipant = participantsForClient([safePayload.newParticipant], false)[0];
+            }
+          }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event, payload: safePayload })}\n\n`));
         } catch {
           closed = true;
@@ -64,6 +86,8 @@ export async function GET(req: NextRequest) {
       send('INIT_STATE', { session, participants, serverTime: Date.now() });
       unsubscribe = roomManager.subscribe(roomCode, clientId, data => send(data.event, data.payload));
 
+      // Durable Object storage is the cross-isolate source of truth. A moderate
+      // polling interval keeps clients synchronized without hammering storage.
       pollTimer = setInterval(async () => {
         if (closed || polling) return;
         polling = true;
@@ -108,7 +132,7 @@ export async function GET(req: NextRequest) {
         } finally {
           polling = false;
         }
-      }, 1000);
+      }, 1500);
 
       heartbeatTimer = setInterval(() => {
         if (!closed) {
