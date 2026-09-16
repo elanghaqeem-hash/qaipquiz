@@ -1,4 +1,4 @@
-import { Participant, QuizSession } from '@/types/quiz';
+import { Participant, ParticipantAnswer, QuizSession } from '@/types/quiz';
 
 const REVEAL_STATES = new Set(['ANSWER_REVEAL', 'LEADERBOARD', 'PODIUM', 'FINISHED']);
 
@@ -45,6 +45,42 @@ export function sessionForClient(session: QuizSession, privileged: boolean): any
       return question;
     }),
   };
+}
+
+/**
+ * Rebuild participant scoring using only answers that precede the active
+ * question. The server records an answer immediately, but public clients must
+ * not be able to infer whether it was correct before ANSWER_REVEAL.
+ */
+export function participantsBeforeCurrentQuestion(
+  participants: Participant[],
+  answers: ParticipantAnswer[],
+  currentQuestionId: string
+): Participant[] {
+  return participants.map(participant => {
+    const historical = answers
+      .filter(answer => answer.participant_id === participant.id && answer.question_id !== currentQuestionId)
+      .sort((a, b) => a.question_index - b.question_index || a.submitted_at - b.submitted_at);
+
+    let streak = 0;
+    let maxStreak = 0;
+    for (const answer of historical) {
+      streak = answer.is_correct ? streak + 1 : 0;
+      maxStreak = Math.max(maxStreak, streak);
+    }
+
+    const responseTimes = historical.map(answer => answer.response_time_ms).filter(value => value > 0);
+    return {
+      ...participant,
+      total_score: historical.reduce((sum, answer) => sum + answer.score, 0),
+      total_correct: historical.filter(answer => answer.is_correct).length,
+      total_wrong: historical.filter(answer => !answer.is_correct).length,
+      total_response_time_ms: responseTimes.reduce((sum, value) => sum + value, 0),
+      fastest_response_ms: responseTimes.length ? Math.min(...responseTimes) : 0,
+      streak,
+      max_streak: maxStreak,
+    };
+  });
 }
 
 /**
