@@ -4,14 +4,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Lock, User, ShieldCheck, UserCheck, LogIn, Sparkles,
+  Lock, User, ShieldCheck, UserCheck, LogIn,
   AlertCircle, ArrowRight
 } from 'lucide-react';
 import { UserRole } from '@/types/quiz';
 
 export default function LoginPage() {
   const router = useRouter();
-
   const [activeTab, setActiveTab] = useState<'TRAINER' | 'SUPER_ADMIN'>('TRAINER');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -34,25 +33,27 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        cache: 'no-store',
+        body: JSON.stringify({ username: username.trim(), password })
       });
 
       const data = await res.json();
-      if (!data.success) {
+      if (!res.ok || !data.success) {
         throw new Error(data.error || 'Login gagal, periksa username dan password');
       }
 
-      // Check role authorization
       const userRole: UserRole = data.data.user.role;
       if (activeTab === 'SUPER_ADMIN' && userRole !== 'SUPER_ADMIN') {
+        await fetch('/api/auth/logout', { method: 'POST' });
         throw new Error('Akun ini tidak memiliki hak akses Super Admin');
       }
-
-      if (userRole === 'SUPER_ADMIN') {
-        router.push('/admin');
-      } else {
-        router.push('/trainer');
+      if (activeTab === 'TRAINER' && !['TRAINER', 'SUPER_ADMIN'].includes(userRole)) {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        throw new Error('Akun ini tidak memiliki hak akses Trainer');
       }
+
+      router.replace(userRole === 'SUPER_ADMIN' ? '/admin' : '/trainer');
+      router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message || 'Terjadi kesalahan saat login');
     } finally {
@@ -63,7 +64,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-        
         <div className="text-center space-y-2">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 mx-auto flex items-center justify-center shadow-xl shadow-blue-500/30">
             <Lock className="w-7 h-7 text-white" />
@@ -74,10 +74,11 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Role Selector Tabs */}
-        <div className="flex rounded-2xl bg-slate-950 p-1.5 border border-slate-800">
+        <div className="flex rounded-2xl bg-slate-950 p-1.5 border border-slate-800" role="tablist" aria-label="Pilih portal akun">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'TRAINER'}
             onClick={() => handleTabChange('TRAINER')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
               activeTab === 'TRAINER'
@@ -91,6 +92,8 @@ export default function LoginPage() {
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'SUPER_ADMIN'}
             onClick={() => handleTabChange('SUPER_ADMIN')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
               activeTab === 'SUPER_ADMIN'
@@ -104,7 +107,7 @@ export default function LoginPage() {
         </div>
 
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+          <div role="alert" className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -112,17 +115,21 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+            <label htmlFor="username" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
               Username
             </label>
             <div className="relative">
               <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               <input
+                id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                autoComplete="off"
+                maxLength={120}
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="username"
                 placeholder="Masukkan username"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
               />
@@ -130,32 +137,34 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+            <label htmlFor="password" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
               Password
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               <input
+                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                autoComplete="new-password"
+                maxLength={256}
+                autoComplete="current-password"
                 placeholder="Masukkan password"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
               />
             </div>
           </div>
 
-          {/* Quick Demo Credentials Info */}
-          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400 text-center">
-            Akun Default: <strong className="text-slate-200">{activeTab === 'TRAINER' ? 'trainer / trainer123' : 'admin / admin123'}</strong>
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400 text-center leading-relaxed">
+            Gunakan akun Trainer/Admin yang diberikan administrator. Kredensial production tidak disimpan atau ditampilkan di source code.
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3.5 rounded-xl font-black text-sm shadow-xl flex items-center justify-center gap-2 transition-all active:scale-98 ${
+            aria-busy={loading}
+            className={`w-full py-3.5 rounded-xl font-black text-sm shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ${
               activeTab === 'TRAINER'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25'
                 : 'bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white shadow-rose-500/25'
@@ -172,7 +181,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Participant Info Banner */}
         <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center space-y-1">
           <p className="text-xs text-blue-300 font-bold">Apakah Anda Peserta Quiz?</p>
           <p className="text-[11px] text-slate-400">
@@ -187,7 +195,6 @@ export default function LoginPage() {
             </Link>
           </div>
         </div>
-
       </div>
     </div>
   );
