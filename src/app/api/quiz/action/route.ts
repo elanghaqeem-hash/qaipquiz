@@ -119,9 +119,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Format email tidak valid' }, { status: 400 });
       }
 
-      // Reconnect is authorized by the existing signed participant cookie.
-      // Without that cookie we always create a new identity instead of matching
-      // on public attributes such as name/company, preventing identity takeover.
       const participant = await createOrResumeParticipant(req, session.session_id, roomCode, session.mode, {
         name,
         company,
@@ -176,8 +173,14 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const result = await roomManager.submitAnswer(roomCode, participantId, selectedOption as 'A' | 'B' | 'C' | 'D');
-      return NextResponse.json({ success: true, data: result }, { headers: { 'Cache-Control': 'no-store' } });
+      await roomManager.submitAnswer(roomCode, participantId, selectedOption as 'A' | 'B' | 'C' | 'D');
+
+      // Do not reveal correctness, score or streak while the question is active.
+      // Personalized result details arrive over SSE only after ANSWER_REVEAL.
+      return NextResponse.json(
+        { success: true, data: { accepted: true, selectedOption } },
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
     }
 
     if (HOST_ACTIONS.has(action)) {
