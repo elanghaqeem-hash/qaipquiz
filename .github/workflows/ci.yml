@@ -27,11 +27,8 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build Next.js
+      - name: Build Next.js and OpenNext
         run: npm run build
-
-      - name: Build OpenNext for Cloudflare
-        run: npm run build:cloudflare
 
       - name: Validate Wrangler deployment
         run: npx wrangler deploy --dry-run --outdir .wrangler-dry-run
