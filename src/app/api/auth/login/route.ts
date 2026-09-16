@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const username = String(body?.username || '').trim();
-    const password = String(body?.password || '');
+    const username = String(body?.username || '').trim().slice(0, 120);
+    const password = String(body?.password || '').slice(0, 256);
 
     if (!username || !password) {
       return NextResponse.json({ success: false, error: 'Username dan password wajib diisi' }, { status: 400 });
@@ -18,7 +18,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Username atau password salah' }, { status: 401 });
     }
 
-    const response = NextResponse.json({ success: true, data: authResult });
+    // The signed token stays exclusively in an HttpOnly cookie. Returning it in
+    // JSON would unnecessarily expose it to client-side JavaScript.
+    const response = NextResponse.json(
+      { success: true, data: { user: authResult.user } },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
     response.cookies.set('tqa_auth_token', authResult.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
