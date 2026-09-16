@@ -1,4 +1,4 @@
-import { QuizSession } from '@/types/quiz';
+import { Participant, QuizSession } from '@/types/quiz';
 
 const REVEAL_STATES = new Set(['ANSWER_REVEAL', 'LEADERBOARD', 'PODIUM', 'FINISHED']);
 
@@ -45,4 +45,31 @@ export function sessionForClient(session: QuizSession, privileged: boolean): any
       return question;
     }),
   };
+}
+
+/**
+ * Participant lists are visible to everyone in a live room, so only expose
+ * gameplay fields publicly. Contact and organization data remain available
+ * to authenticated trainer/admin reports but are not broadcast to the room.
+ */
+export function participantsForClient(participants: Participant[], privileged: boolean): any[] {
+  if (privileged) return participants;
+
+  return participants.map((participant) => ({
+    id: participant.id,
+    name: participant.name,
+    team: participant.team,
+    avatar_seed: participant.avatar_seed,
+    total_score: participant.total_score,
+    rank: participant.rank,
+    previous_rank: participant.previous_rank,
+    streak: participant.streak,
+    max_streak: participant.max_streak,
+    total_correct: participant.total_correct,
+    total_wrong: participant.total_wrong,
+    total_timeout: participant.total_timeout,
+    total_response_time_ms: participant.total_response_time_ms,
+    fastest_response_ms: participant.fastest_response_ms,
+    is_connected: participant.is_connected,
+  }));
 }
