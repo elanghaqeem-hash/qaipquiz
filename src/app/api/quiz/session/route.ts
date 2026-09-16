@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/authorize';
 import { verifyParticipantToken } from '@/lib/participant-auth';
-import { participantsForClient, sessionForClient } from '@/lib/public-session';
+import { participantsBeforeCurrentQuestion, participantsForClient, sessionForClient } from '@/lib/public-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,13 +46,18 @@ export async function GET(req: NextRequest) {
       db.getAnswers(session.session_id),
     ]);
 
+    const currentQuestion = session.questions[session.current_question_index];
+    const participantSnapshot = !privileged && session.status === 'QUESTION_ACTIVE' && currentQuestion
+      ? participantsBeforeCurrentQuestion(participants, answers, currentQuestion.question_id)
+      : participants;
+
     return NextResponse.json(
       {
         success: true,
         data: {
           session: sessionForClient(session, privileged),
-          participants: participantsForClient(participants, privileged),
-          answersCount: answers.length,
+          participants: participantsForClient(participantSnapshot, privileged),
+          answersCount: privileged ? answers.length : undefined,
           totalQuestions: session.questions.length,
         },
       },
