@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/authorize';
-import { sessionForClient } from '@/lib/public-session';
+import { participantsForClient, sessionForClient } from '@/lib/public-session';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const roomCode = searchParams.get('roomCode');
-    const sessionId = searchParams.get('sessionId');
+    const roomCode = searchParams.get('roomCode')?.trim().toUpperCase();
+    const sessionId = searchParams.get('sessionId')?.trim();
+
+    if (!roomCode && !sessionId) {
+      return NextResponse.json({ success: false, error: 'roomCode atau sessionId wajib diisi' }, { status: 400 });
+    }
 
     let session = roomCode ? await db.getSessionByRoomCode(roomCode) : undefined;
     if (!session && sessionId) session = await db.getSessionById(sessionId);
@@ -24,15 +28,22 @@ export async function GET(req: NextRequest) {
       db.getAnswers(session.session_id),
     ]);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        session: sessionForClient(session, privileged),
-        participants,
-        answersCount: answers.length,
-        totalQuestions: session.questions.length,
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          session: sessionForClient(session, privileged),
+          participants: participantsForClient(participants, privileged),
+          answersCount: answers.length,
+          totalQuestions: session.questions.length,
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
+    );
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
