@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/authorize';
 import { verifyParticipantToken } from '@/lib/participant-auth';
-import { participantsForClient, sessionForClient } from '@/lib/public-session';
+import { participantsBeforeCurrentQuestion, participantsForClient, sessionForClient } from '@/lib/public-session';
 import { roomManager } from '@/lib/room-manager';
 import { Participant, QuizSession } from '@/types/quiz';
 
@@ -25,9 +25,6 @@ function inferAction(previous: QuizSession, current: QuizSession): string {
 }
 
 function participantSignature(participants: Participant[], status: string): string {
-  // While a question is active, never use live score/rank changes as a reason
-  // to broadcast participant objects. Otherwise clients could infer correctness
-  // before the trainer reveals the answer.
   if (status === 'QUESTION_ACTIVE') {
     return JSON.stringify(participants.map(p => [p.id, p.is_connected]));
   }
@@ -74,6 +71,9 @@ export async function GET(req: NextRequest) {
   const initialMyAnswer = !privileged && currentQuestion && FEEDBACK_STATES.has(session.status)
     ? answers.find(a => a.participant_id === clientId && a.question_id === currentQuestion!.question_id) || null
     : null;
+  const initialParticipantPayload = !privileged && session.status === 'QUESTION_ACTIVE' && currentQuestion
+    ? participantsBeforeCurrentQuestion(participants, answers, currentQuestion.question_id)
+    : participants;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -101,14 +101,18 @@ export async function GET(req: NextRequest) {
 
       send('INIT_STATE', {
         session,
-        participants,
+        participants: initialParticipantPayload,
         myAnswer: initialMyAnswer,
         serverTime: Date.now(),
       });
-      unsubscribe = roomManager.subscribe(roomCode, clientId, data => send(data.event, data.payload));
 
-      // Durable Object storage is the cross-isolate source of truth. A moderate
-      // polling interval keeps clients synchronized without hammering storage.
+      // Host/admin controls benefit from same-isolate instant delivery. Participant
+      // streams use the storage-backed path below so pre-reveal scoring can always
+      // be sanitized consistently.
+      if (privileged) {
+        unsubscribe = roomManager.subscribe(roomCode, clientId, data => send(data.event, data.payload));
+      }
+
       pollTimer = setInterval(async () => {
         if (closed || polling) return;
         polling = true;
@@ -126,12 +130,20 @@ export async function GET(req: NextRequest) {
             value.question_ends_at,
             value.updated_at,
           ]);
+          const q = freshSession.questions[freshSession.current_question_index];
+          const participantPayload = !privileged && freshSession.status === 'QUESTION_ACTIVE' && q
+            ? participantsBeforeCurrentQuestion(freshParticipants, freshAnswers, q.question_id)
+            : freshParticipants;
 
           const newParticipant = freshParticipants.find(p => !lastParticipantIds.has(p.id));
-          if (newParticipant) send('PARTICIPANT_JOINED', { participants: freshParticipants, newParticipant });
+          if (newParticipant) {
+            send('PARTICIPANT_JOINED', {
+              participants: participantPayload,
+              newParticipant,
+            });
+          }
 
           if (sessionSignature(lastSession) !== sessionSignature(freshSession) || freshParticipantSignature !== lastParticipantSignature) {
-            const q = freshSession.questions[freshSession.current_question_index];
             const distribution = q ? await roomManager.getAnswerDistribution(freshSession.session_id, q.question_id) : null;
             const myAnswer = !privileged && q && FEEDBACK_STATES.has(freshSession.status)
               ? freshAnswers.find(a => a.participant_id === clientId && a.question_id === q.question_id) || null
@@ -139,13 +151,13 @@ export async function GET(req: NextRequest) {
             send('STATE_CHANGE', {
               session: freshSession,
               action,
-              participants: freshParticipants,
+              participants: participantPayload,
               distribution,
               myAnswer,
             });
           }
 
-          currentQuestion = freshSession.questions[freshSession.current_question_index];
+          currentQuestion = q;
           const answerCount = currentQuestion
             ? freshAnswers.filter(a => a.question_id === currentQuestion!.question_id).length
             : 0;
