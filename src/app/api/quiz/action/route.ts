@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/authorize';
 import { issueParticipantToken, verifyParticipantToken } from '@/lib/participant-auth';
 import { sessionForClient } from '@/lib/public-session';
 import { roomManager } from '@/lib/room-manager';
+import { Participant, TeamId } from '@/types/quiz';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,61 @@ function cleanText(value: unknown, maxLength: number): string {
 
 function looksLikeEmail(value: string): boolean {
   return !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+async function createOrResumeParticipant(
+  req: NextRequest,
+  sessionId: string,
+  roomCode: string,
+  mode: string,
+  data: { name: string; company: string; unit_kerja: string; email?: string }
+): Promise<Participant> {
+  const existingToken = req.cookies.get('tqa_participant_token')?.value;
+  const existingAuth = existingToken
+    ? await verifyParticipantToken(existingToken, { sessionId, roomCode })
+    : null;
+
+  if (existingAuth) {
+    const existing = await db.getParticipantById(existingAuth.participantId);
+    if (existing && existing.session_id === sessionId) {
+      existing.is_connected = true;
+      existing.last_active = Date.now();
+      await db.saveParticipant(existing);
+      return existing;
+    }
+  }
+
+  const participants = await db.getParticipants(sessionId);
+  let team: TeamId | undefined;
+  if (mode === 'TEAM_BATTLE') {
+    const teams: TeamId[] = ['TEAM_ALPHA', 'TEAM_BRAVO', 'TEAM_CHARLIE', 'TEAM_DELTA'];
+    team = teams[participants.length % teams.length];
+  }
+
+  const participant: Participant = {
+    id: 'p-' + crypto.randomUUID(),
+    session_id: sessionId,
+    name: data.name,
+    company: data.company,
+    unit_kerja: data.unit_kerja,
+    email: data.email,
+    team,
+    avatar_seed: String(participants.length + 1),
+    total_score: 0,
+    rank: participants.length + 1,
+    previous_rank: participants.length + 1,
+    streak: 0,
+    max_streak: 0,
+    total_correct: 0,
+    total_wrong: 0,
+    total_timeout: 0,
+    total_response_time_ms: 0,
+    fastest_response_ms: 0,
+    last_active: Date.now(),
+    is_connected: true,
+  };
+  await db.saveParticipant(participant);
+  return participant;
 }
 
 export async function POST(req: NextRequest) {
@@ -63,25 +119,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Format email tidak valid' }, { status: 400 });
       }
 
-      const result = await roomManager.joinRoom(roomCode, {
+      // Reconnect is authorized by the existing signed participant cookie.
+      // Without that cookie we always create a new identity instead of matching
+      // on public attributes such as name/company, preventing identity takeover.
+      const participant = await createOrResumeParticipant(req, session.session_id, roomCode, session.mode, {
         name,
         company,
         unit_kerja: unitKerja,
         email: email || undefined,
       });
+      const participants = await db.getParticipants(session.session_id);
+      roomManager.broadcast(roomCode, 'PARTICIPANT_JOINED', { participants, newParticipant: participant });
+
       const participantToken = await issueParticipantToken({
-        participantId: result.participant.id,
-        sessionId: result.session.session_id,
+        participantId: participant.id,
+        sessionId: session.session_id,
         roomCode,
       });
 
-      const response = NextResponse.json({
-        success: true,
-        data: {
-          participant: result.participant,
-          session: sessionForClient(result.session, false),
+      const response = NextResponse.json(
+        {
+          success: true,
+          data: {
+            participant,
+            session: sessionForClient(session, false),
+          },
         },
-      });
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
       response.cookies.set('tqa_participant_token', participantToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -112,7 +177,7 @@ export async function POST(req: NextRequest) {
       }
 
       const result = await roomManager.submitAnswer(roomCode, participantId, selectedOption as 'A' | 'B' | 'C' | 'D');
-      return NextResponse.json({ success: true, data: result });
+      return NextResponse.json({ success: true, data: result }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     if (HOST_ACTIONS.has(action)) {
@@ -133,9 +198,10 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     const message = error?.message || 'Terjadi kesalahan pada quiz';
     const misconfigured = message.includes('_TOKEN_SECRET') || message.includes('AUTH_');
+    const conflict = /sudah terkunci|sedang tidak aktif|sudah selesai/i.test(message);
     return NextResponse.json(
       { success: false, error: misconfigured ? 'Konfigurasi keamanan production belum lengkap' : message },
-      { status: misconfigured ? 503 : 500 }
+      { status: misconfigured ? 503 : conflict ? 409 : 500 }
     );
   }
 }
