@@ -4,9 +4,11 @@ import { getAuthenticatedUser } from '@/lib/authorize';
 import { verifyParticipantToken } from '@/lib/participant-auth';
 import { participantsForClient, sessionForClient } from '@/lib/public-session';
 import { roomManager } from '@/lib/room-manager';
-import { QuizSession } from '@/types/quiz';
+import { Participant, QuizSession } from '@/types/quiz';
 
 export const dynamic = 'force-dynamic';
+
+const FEEDBACK_STATES = new Set(['ANSWER_REVEAL', 'LEADERBOARD', 'PODIUM', 'FINISHED']);
 
 function inferAction(previous: QuizSession, current: QuizSession): string {
   if (previous.status !== current.status) {
@@ -20,6 +22,16 @@ function inferAction(previous: QuizSession, current: QuizSession): string {
   }
   if (previous.current_question_index !== current.current_question_index) return 'NEXT_QUESTION';
   return 'SYNC';
+}
+
+function participantSignature(participants: Participant[], status: string): string {
+  // While a question is active, never use live score/rank changes as a reason
+  // to broadcast participant objects. Otherwise clients could infer correctness
+  // before the trainer reveals the answer.
+  if (status === 'QUESTION_ACTIVE') {
+    return JSON.stringify(participants.map(p => [p.id, p.is_connected]));
+  }
+  return JSON.stringify(participants.map(p => [p.id, p.total_score, p.rank, p.last_active, p.is_connected]));
 }
 
 export async function GET(req: NextRequest) {
@@ -50,7 +62,7 @@ export async function GET(req: NextRequest) {
 
   let lastSession = session;
   let lastParticipantIds = new Set(participants.map(p => p.id));
-  let lastParticipantSignature = JSON.stringify(participants.map(p => [p.id, p.total_score, p.rank, p.last_active]));
+  let lastParticipantSignature = participantSignature(participants, session.status);
   let currentQuestion = session.questions[session.current_question_index];
   let lastAnswerCount = currentQuestion ? answers.filter(a => a.question_id === currentQuestion.question_id).length : 0;
   let closed = false;
@@ -58,6 +70,10 @@ export async function GET(req: NextRequest) {
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let unsubscribe = () => {};
+
+  const initialMyAnswer = !privileged && currentQuestion && FEEDBACK_STATES.has(session.status)
+    ? answers.find(a => a.participant_id === clientId && a.question_id === currentQuestion!.question_id) || null
+    : null;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -83,7 +99,12 @@ export async function GET(req: NextRequest) {
         }
       };
 
-      send('INIT_STATE', { session, participants, serverTime: Date.now() });
+      send('INIT_STATE', {
+        session,
+        participants,
+        myAnswer: initialMyAnswer,
+        serverTime: Date.now(),
+      });
       unsubscribe = roomManager.subscribe(roomCode, clientId, data => send(data.event, data.payload));
 
       // Durable Object storage is the cross-isolate source of truth. A moderate
@@ -97,7 +118,7 @@ export async function GET(req: NextRequest) {
           const freshParticipants = await db.getParticipants(freshSession.session_id);
           const freshAnswers = await db.getAnswers(freshSession.session_id);
           const action = inferAction(lastSession, freshSession);
-          const participantSignature = JSON.stringify(freshParticipants.map(p => [p.id, p.total_score, p.rank, p.last_active]));
+          const freshParticipantSignature = participantSignature(freshParticipants, freshSession.status);
           const sessionSignature = (value: QuizSession) => JSON.stringify([
             value.status,
             value.current_question_index,
@@ -109,10 +130,19 @@ export async function GET(req: NextRequest) {
           const newParticipant = freshParticipants.find(p => !lastParticipantIds.has(p.id));
           if (newParticipant) send('PARTICIPANT_JOINED', { participants: freshParticipants, newParticipant });
 
-          if (sessionSignature(lastSession) !== sessionSignature(freshSession) || participantSignature !== lastParticipantSignature) {
+          if (sessionSignature(lastSession) !== sessionSignature(freshSession) || freshParticipantSignature !== lastParticipantSignature) {
             const q = freshSession.questions[freshSession.current_question_index];
             const distribution = q ? await roomManager.getAnswerDistribution(freshSession.session_id, q.question_id) : null;
-            send('STATE_CHANGE', { session: freshSession, action, participants: freshParticipants, distribution });
+            const myAnswer = !privileged && q && FEEDBACK_STATES.has(freshSession.status)
+              ? freshAnswers.find(a => a.participant_id === clientId && a.question_id === q.question_id) || null
+              : null;
+            send('STATE_CHANGE', {
+              session: freshSession,
+              action,
+              participants: freshParticipants,
+              distribution,
+              myAnswer,
+            });
           }
 
           currentQuestion = freshSession.questions[freshSession.current_question_index];
@@ -125,7 +155,7 @@ export async function GET(req: NextRequest) {
 
           lastSession = freshSession;
           lastParticipantIds = new Set(freshParticipants.map(p => p.id));
-          lastParticipantSignature = participantSignature;
+          lastParticipantSignature = freshParticipantSignature;
           lastAnswerCount = answerCount;
         } catch (error) {
           console.error('SSE sync error:', error);
