@@ -5,6 +5,13 @@ export default {
   fetch: nextHandler.fetch,
 };
 
+function randomSecret() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
 /**
  * Persistent, single-writer application state for the quiz runtime.
  * Durable Object storage prevents the data-loss and cross-isolate race
@@ -57,6 +64,29 @@ export class QuizStore {
       });
 
       return response ?? Response.json({ error: 'Storage transaction failed' }, { status: 500 });
+    }
+
+    // Internal-only runtime secret endpoint. Durable Objects are not directly
+    // exposed to the public internet; the Next.js worker calls this through
+    // the QUIZ_STORE binding. The secret value is generated once and remains
+    // stable across Worker restarts and isolates.
+    if (request.method === 'POST' && url.pathname.startsWith('/secret/')) {
+      const name = decodeURIComponent(url.pathname.slice('/secret/'.length));
+      if (!/^[a-z0-9_-]{3,64}$/i.test(name)) {
+        return Response.json({ error: 'Invalid secret name' }, { status: 400 });
+      }
+
+      const storageKey = `secret:${name}`;
+      let secret;
+      await this.state.storage.transaction(async (txn) => {
+        secret = await txn.get(storageKey);
+        if (!secret) {
+          secret = randomSecret();
+          await txn.put(storageKey, secret);
+        }
+      });
+
+      return Response.json({ secret }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     if (request.method === 'GET' && url.pathname === '/health') {
