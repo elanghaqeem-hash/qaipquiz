@@ -2,14 +2,20 @@ import { db } from './db';
 import { getRuntimeSecret } from './runtime-secret';
 import { UserAccount, UserRole } from '@/types/quiz';
 
-const PBKDF2_ITERATIONS = 120000;
+// Cloudflare Workers currently rejects PBKDF2 iteration counts above 10,000
+// in the runtime used by this application. Keep new password hashes within the
+// supported limit so authentication works consistently in production.
+const PBKDF2_ITERATIONS = 10000;
+const MAX_RUNTIME_PBKDF2_ITERATIONS = 10000;
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-// Emergency bootstrap hashes only. Plaintext passwords are never stored in the
-// repository. Operators should replace these bootstrap accounts after login or
-// override them with Cloudflare Secrets.
-const BOOTSTRAP_ADMIN_HASH = 'pbkdf2$120000$VNQ8FXKnDHUSUX7ianX1Xw$yfE741mHe1jFOOhjIj8Gm27uRKunbIeeQ2KpewhibJ0';
-const BOOTSTRAP_TRAINER_HASH = 'pbkdf2$120000$UzEGNdOkBj6D3e8GMdEnUA$dQsjS_j7fA28SgdfgX6r_385RFBjy24Tl0AzhkYqfK4';
+// Emergency bootstrap/recovery hashes only. Plaintext passwords are never
+// stored in the repository. These hashes also provide a one-time recovery path
+// for legacy 120,000-iteration staff hashes that Cloudflare can no longer
+// evaluate. A successful recovery login immediately rewrites the stored hash
+// using the runtime-compatible iteration count.
+const BOOTSTRAP_ADMIN_HASH = 'pbkdf2$10000$uW2sN3w-ZTGafIyHylaelA$_x5eLHFalRap-iFbY0c1jF_Hu3mfDq45S0hDrPPY7Y0';
+const BOOTSTRAP_TRAINER_HASH = 'pbkdf2$10000$WkRpKAasJcU8qur7VMN4_Q$vQH1z3rxXO2ze4VpQyqU4waER144RlprMjZ1U45mjj4';
 
 function base64url(input: Uint8Array | string): string {
   const buffer = typeof input === 'string' ? Buffer.from(input, 'utf8') : Buffer.from(input);
@@ -24,7 +30,23 @@ function toArrayBuffer(input: Uint8Array): ArrayBuffer {
   return Uint8Array.from(input).buffer;
 }
 
+function getEncodedIterations(encoded: string): number | null {
+  if (!encoded.startsWith('pbkdf2$')) return null;
+  const [, iterationText] = encoded.split('$');
+  const iterations = Number(iterationText);
+  return Number.isFinite(iterations) && iterations > 0 ? iterations : null;
+}
+
+function needsRuntimeMigration(encoded: string): boolean {
+  const iterations = getEncodedIterations(encoded);
+  return iterations !== null && iterations > MAX_RUNTIME_PBKDF2_ITERATIONS;
+}
+
 async function derivePassword(password: string, salt: Uint8Array, iterations = PBKDF2_ITERATIONS): Promise<Uint8Array> {
+  if (iterations > MAX_RUNTIME_PBKDF2_ITERATIONS) {
+    throw new Error(`Unsupported PBKDF2 iteration count: ${iterations}`);
+  }
+
   const passwordBytes = new TextEncoder().encode(password);
   const key = await crypto.subtle.importKey(
     'raw',
@@ -52,12 +74,35 @@ async function verifyPassword(password: string, encoded: string): Promise<boolea
   const [, iterationText, saltText, hashText] = encoded.split('$');
   const iterations = Number(iterationText);
   if (!iterations || !saltText || !hashText) return false;
+
+  // Do not call WebCrypto with an iteration count the Cloudflare runtime will
+  // reject. Legacy staff accounts are handled through the recovery path below.
+  if (iterations > MAX_RUNTIME_PBKDF2_ITERATIONS) return false;
+
   const actual = await derivePassword(password, fromBase64url(saltText), iterations);
   const expected = fromBase64url(hashText);
   if (actual.length !== expected.length) return false;
   let diff = 0;
   for (let i = 0; i < actual.length; i += 1) diff |= actual[i] ^ expected[i];
   return diff === 0;
+}
+
+async function verifyRecoveryCredential(user: UserAccount, password: string): Promise<boolean> {
+  if (!needsRuntimeMigration(user.password_hash)) return false;
+
+  if (user.role === 'SUPER_ADMIN') {
+    const configured = process.env.AUTH_ADMIN_PASSWORD;
+    if (configured && password === configured) return true;
+    return verifyPassword(password, BOOTSTRAP_ADMIN_HASH);
+  }
+
+  if (user.role === 'TRAINER') {
+    const configured = process.env.AUTH_TRAINER_PASSWORD;
+    if (configured && password === configured) return true;
+    return verifyPassword(password, BOOTSTRAP_TRAINER_HASH);
+  }
+
+  return false;
 }
 
 async function getTokenSecret(): Promise<string> {
@@ -127,9 +172,13 @@ export const authService = {
   authenticate: async (username: string, password: string): Promise<{ user: Omit<UserAccount, 'password_hash'>; token: string } | null> => {
     await ensureBootstrapUsers();
     const found = await db.getUserByUsername(username);
-    if (!found || !(await verifyPassword(password, found.password_hash))) return null;
+    if (!found) return null;
 
-    if (!found.password_hash.startsWith('pbkdf2$')) {
+    const passwordValid = await verifyPassword(password, found.password_hash);
+    const recoveredLegacyHash = !passwordValid && (await verifyRecoveryCredential(found, password));
+    if (!passwordValid && !recoveredLegacyHash) return null;
+
+    if (recoveredLegacyHash || !found.password_hash.startsWith('pbkdf2$')) {
       found.password_hash = await hashPassword(password);
       await db.saveUser(found);
     }
