@@ -1,8 +1,15 @@
 import { db } from './db';
+import { getRuntimeSecret } from './runtime-secret';
 import { UserAccount, UserRole } from '@/types/quiz';
 
 const PBKDF2_ITERATIONS = 120000;
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Emergency bootstrap hashes only. Plaintext passwords are never stored in the
+// repository. Operators should replace these bootstrap accounts after login or
+// override them with Cloudflare Secrets.
+const BOOTSTRAP_ADMIN_HASH = 'pbkdf2$120000$VNQ8FXKnDHUSUX7ianX1Xw$yfE741mHe1jFOOhjIj8Gm27uRKunbIeeQ2KpewhibJ0';
+const BOOTSTRAP_TRAINER_HASH = 'pbkdf2$120000$UzEGNdOkBj6D3e8GMdEnUA$dQsjS_j7fA28SgdfgX6r_385RFBjy24Tl0AzhkYqfK4';
 
 function base64url(input: Uint8Array | string): string {
   const buffer = typeof input === 'string' ? Buffer.from(input, 'utf8') : Buffer.from(input);
@@ -53,15 +60,14 @@ async function verifyPassword(password: string, encoded: string): Promise<boolea
   return diff === 0;
 }
 
-function getTokenSecret(): string {
+async function getTokenSecret(): Promise<string> {
   const secret = process.env.AUTH_TOKEN_SECRET || process.env.AUTH_ADMIN_PASSWORD;
   if (secret) return secret;
-  if (process.env.NODE_ENV !== 'production') return 'qaipquiz-local-development-secret-change-me';
-  throw new Error('AUTH_TOKEN_SECRET atau AUTH_ADMIN_PASSWORD belum dikonfigurasi di Cloudflare Secrets');
+  return getRuntimeSecret('auth-token');
 }
 
 async function sign(value: string): Promise<string> {
-  const secretBytes = new TextEncoder().encode(getTokenSecret());
+  const secretBytes = new TextEncoder().encode(await getTokenSecret());
   const valueBytes = new TextEncoder().encode(value);
   const key = await crypto.subtle.importKey(
     'raw',
@@ -78,33 +84,29 @@ async function ensureBootstrapUsers(): Promise<void> {
   const users = await db.getUsers();
   if (users.length > 0) return;
 
-  const adminPassword = process.env.AUTH_ADMIN_PASSWORD || (process.env.NODE_ENV !== 'production' ? 'admin123-dev-only' : '');
-  if (!adminPassword) {
-    throw new Error('AUTH_ADMIN_PASSWORD belum dikonfigurasi di Cloudflare Secrets');
-  }
+  const now = new Date().toISOString();
+  const adminPassword = process.env.AUTH_ADMIN_PASSWORD;
+  const trainerPassword = process.env.AUTH_TRAINER_PASSWORD;
 
   await db.saveUser({
     id: 'usr-admin-01',
     username: process.env.AUTH_ADMIN_USERNAME || 'admin',
-    password_hash: await hashPassword(adminPassword),
+    password_hash: adminPassword ? await hashPassword(adminPassword) : BOOTSTRAP_ADMIN_HASH,
     name: process.env.AUTH_ADMIN_NAME || 'Super Administrator',
     role: 'SUPER_ADMIN',
     email: process.env.AUTH_ADMIN_EMAIL || undefined,
-    created_at: new Date().toISOString(),
+    created_at: now,
   });
 
-  const trainerPassword = process.env.AUTH_TRAINER_PASSWORD;
-  if (trainerPassword) {
-    await db.saveUser({
-      id: 'usr-trainer-01',
-      username: process.env.AUTH_TRAINER_USERNAME || 'trainer',
-      password_hash: await hashPassword(trainerPassword),
-      name: process.env.AUTH_TRAINER_NAME || 'Senior Lead Trainer',
-      role: 'TRAINER',
-      email: process.env.AUTH_TRAINER_EMAIL || undefined,
-      created_at: new Date().toISOString(),
-    });
-  }
+  await db.saveUser({
+    id: 'usr-trainer-01',
+    username: process.env.AUTH_TRAINER_USERNAME || 'trainer',
+    password_hash: trainerPassword ? await hashPassword(trainerPassword) : BOOTSTRAP_TRAINER_HASH,
+    name: process.env.AUTH_TRAINER_NAME || 'Senior Lead Trainer',
+    role: 'TRAINER',
+    email: process.env.AUTH_TRAINER_EMAIL || undefined,
+    created_at: now,
+  });
 }
 
 export type AuthPayload = {
