@@ -1,3 +1,5 @@
+import { getRuntimeSecret } from './runtime-secret';
+
 const PARTICIPANT_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
 export type ParticipantTokenPayload = {
@@ -21,15 +23,14 @@ function toArrayBuffer(input: Uint8Array): ArrayBuffer {
   return Uint8Array.from(input).buffer;
 }
 
-function getParticipantSecret(): string {
+async function getParticipantSecret(): Promise<string> {
   const secret = process.env.PARTICIPANT_TOKEN_SECRET || process.env.AUTH_TOKEN_SECRET || process.env.AUTH_ADMIN_PASSWORD;
   if (secret) return secret;
-  if (process.env.NODE_ENV !== 'production') return 'qaipquiz-participant-local-development-secret-change-me';
-  throw new Error('PARTICIPANT_TOKEN_SECRET atau AUTH_TOKEN_SECRET belum dikonfigurasi di Cloudflare Secrets');
+  return getRuntimeSecret('participant-token');
 }
 
 async function sign(value: string): Promise<string> {
-  const secretBytes = new TextEncoder().encode(getParticipantSecret());
+  const secretBytes = new TextEncoder().encode(await getParticipantSecret());
   const valueBytes = new TextEncoder().encode(value);
   const key = await crypto.subtle.importKey(
     'raw',
