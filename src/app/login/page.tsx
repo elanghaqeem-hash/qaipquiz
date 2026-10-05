@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Lock, User, ShieldCheck, UserCheck, LogIn,
-  AlertCircle, ArrowRight
+  AlertCircle, ArrowRight, Eye, EyeOff
 } from 'lucide-react';
 import { UserRole } from '@/types/quiz';
 
@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<'TRAINER' | 'SUPER_ADMIN'>('TRAINER');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -22,6 +23,7 @@ export default function LoginPage() {
     setErrorMsg('');
     setUsername('');
     setPassword('');
+    setShowPassword(false);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -144,15 +146,26 @@ export default function LoginPage() {
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               <input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 maxLength={256}
                 autoComplete="current-password"
                 placeholder="Masukkan password"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
+                className="w-full pl-10 pr-14 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                aria-controls="password"
+                aria-pressed={showPassword}
+                title={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+              </button>
             </div>
           </div>
 
