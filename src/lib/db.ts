@@ -11,7 +11,10 @@ import {
   UserAccount,
 } from '@/types/quiz';
 
+const QUESTION_BANK_VERSION = 'icofr-15-v1';
+
 interface DatabaseData {
+  question_bank_version?: string;
   questions: Question[];
   sessions: QuizSession[];
   participants: Participant[];
@@ -30,43 +33,10 @@ let localCachedData: DatabaseData | null = null;
 let localRevision = 0;
 
 const defaultTemplates: QuizTemplate[] = [
-  {
-    template_id: 'tmpl-01',
-    title: 'QAIP Certification Pre-Test (20 Soal)',
-    description: 'Simulasi asesmen awal pemahaman kerangka GIAS 2024 dan regulasi audit intern perbankan.',
-    mode: 'PRE_TEST',
-    question_count: 20,
-    default_time_limit: 20,
-    created_at: new Date().toISOString(),
-  },
-  {
-    template_id: 'tmpl-02',
-    title: 'GIAS 2024 Comprehensive Assessment (50 Soal)',
-    description: 'Ujian komprehensif mencakup seluruh 10 area kompetensi Audit Intern Bank.',
-    mode: 'LIVE_COMPETITION',
-    question_count: 50,
-    default_time_limit: 25,
-    created_at: new Date().toISOString(),
-  },
-  {
-    template_id: 'tmpl-03',
-    title: 'Audit Execution & Evidence Challenge (15 Soal)',
-    description: 'Fokus pada teknik pembuktian audit, atribut temuan (5C), sampling, dan kertas kerja.',
-    mode: 'TEAM_BATTLE',
-    question_count: 15,
-    category_filter: 'Pelaksanaan Penugasan Audit',
-    default_time_limit: 25,
-    created_at: new Date().toISOString(),
-  },
-  {
-    template_id: 'tmpl-04',
-    title: 'QAIP Post-Test Evaluation (20 Soal)',
-    description: 'Evaluasi peningkatan pemahaman setelah sesi training selesai.',
-    mode: 'POST_TEST',
-    question_count: 20,
-    default_time_limit: 20,
-    created_at: new Date().toISOString(),
-  },
+  { template_id: 'icofr-pre', title: 'ICOFR Pre-Test (15 Soal)', description: 'Asesmen awal pengendalian pelaporan keuangan bank.', mode: 'PRE_TEST', question_count: 15, category_filter: 'ICOFR', default_time_limit: 60, created_at: '2026-10-05T06:40:00.000Z' },
+  { template_id: 'icofr-live', title: 'ICOFR Live Competition (15 Soal)', description: 'Kuis interaktif konsep dan kasus penerapan ICOFR.', mode: 'LIVE_COMPETITION', question_count: 15, category_filter: 'ICOFR', default_time_limit: 60, created_at: '2026-10-05T06:40:00.000Z' },
+  { template_id: 'icofr-team', title: 'ICOFR Team Battle (15 Soal)', description: 'Diskusi kasus risiko, kontrol, pengujian, dan remediasi.', mode: 'TEAM_BATTLE', question_count: 15, category_filter: 'ICOFR', default_time_limit: 60, created_at: '2026-10-05T06:40:00.000Z' },
+  { template_id: 'icofr-post', title: 'ICOFR Post-Test (15 Soal)', description: 'Evaluasi pemahaman setelah pelatihan ICOFR.', mode: 'POST_TEST', question_count: 15, category_filter: 'ICOFR', default_time_limit: 60, created_at: '2026-10-05T06:40:00.000Z' },
 ];
 
 function freshSeedQuestions(): Question[] {
@@ -75,6 +45,7 @@ function freshSeedQuestions(): Question[] {
 
 function createInitialData(): DatabaseData {
   return {
+    question_bank_version: QUESTION_BANK_VERSION,
     questions: freshSeedQuestions(),
     sessions: [],
     participants: [],
@@ -86,12 +57,14 @@ function createInitialData(): DatabaseData {
 
 function normalizeData(input: Partial<DatabaseData> | null | undefined): DatabaseData {
   const initial = createInitialData();
+  const needsBankMigration = input?.question_bank_version !== QUESTION_BANK_VERSION;
   return {
-    questions: Array.isArray(input?.questions) && input!.questions!.length > 0 ? input!.questions! : initial.questions,
+    question_bank_version: QUESTION_BANK_VERSION,
+    questions: !needsBankMigration && Array.isArray(input?.questions) && input!.questions!.length > 0 ? input!.questions! : initial.questions,
     sessions: Array.isArray(input?.sessions) ? input!.sessions! : [],
     participants: Array.isArray(input?.participants) ? input!.participants! : [],
     answers: Array.isArray(input?.answers) ? input!.answers! : [],
-    templates: Array.isArray(input?.templates) && input!.templates!.length > 0 ? input!.templates! : initial.templates,
+    templates: !needsBankMigration && Array.isArray(input?.templates) && input!.templates!.length > 0 ? input!.templates! : initial.templates,
     users: Array.isArray(input?.users) ? input!.users! : [],
   };
 }
@@ -102,7 +75,11 @@ function loadLocalData(): DatabaseData {
   try {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf8');
-      localCachedData = normalizeData(JSON.parse(raw));
+      const stored = JSON.parse(raw) as Partial<DatabaseData>;
+      localCachedData = normalizeData(stored);
+      if (stored.question_bank_version !== QUESTION_BANK_VERSION) {
+        fs.writeFileSync(DB_FILE, JSON.stringify(localCachedData, null, 2), 'utf8');
+      }
       return localCachedData;
     }
   } catch (error) {
@@ -173,9 +150,17 @@ async function readState(): Promise<StateEnvelope> {
   }
 
   const envelope = await response.json() as StateEnvelope;
+  const normalized = normalizeData(envelope.data);
+  // Migrate only the bank and templates; existing sessions retain question snapshots.
+  if (envelope.data.question_bank_version !== QUESTION_BANK_VERSION) {
+    if (!(await commitState(Number(envelope.revision || 0), normalized))) {
+      return readState();
+    }
+    return { revision: Number(envelope.revision || 0) + 1, data: normalized };
+  }
   return {
     revision: Number(envelope.revision || 0),
-    data: normalizeData(envelope.data),
+    data: normalized,
   };
 }
 

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const requestedMode = String(body?.mode || 'LIVE_COMPETITION').toUpperCase() as QuizMode;
     const mode: QuizMode = QUIZ_MODES.has(requestedMode) ? requestedMode : 'LIVE_COMPETITION';
     const selectionType = body?.selection_type === 'manual' ? 'manual' : 'random';
-    const questionCount = Math.min(100, Math.max(1, Number(body?.question_count) || 20));
+    const questionCount = Math.min(100, Math.max(1, Number(body?.question_count) || 15));
     const selectedIds: string[] = Array.isArray(body?.selected_question_ids)
       ? body.selected_question_ids
           .map((id: unknown) => String(id).trim())
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     const requestedScoringMode = String(settings.scoring_mode || 'STANDARD').toUpperCase() as ScoringMode;
     const scoringMode: ScoringMode = SCORING_MODES.has(requestedScoringMode) ? requestedScoringMode : 'STANDARD';
-    const timePerQuestion = Math.min(300, Math.max(5, Number(settings.time_per_question) || 20));
+    const timePerQuestion = Math.min(300, Math.max(5, Number(settings.time_per_question) || 60));
     const passingScore = Math.min(100, Math.max(0, Number(settings.passing_score) || 75));
     const revealDuration = Math.min(120, Math.max(3, Number(settings.reveal_duration_seconds) || 10));
     const now = new Date().toISOString();
@@ -85,8 +85,8 @@ export async function POST(req: NextRequest) {
     const newSession: QuizSession = {
       session_id: 'sess-' + crypto.randomUUID(),
       room_code: roomCode,
-      title: cleanText(body?.title, 'QAIP Training Live Quiz', 200),
-      training_name: cleanText(body?.training_name, 'QAIP & GIAS 2024 Certification Training', 240),
+      title: cleanText(body?.title, 'ICOFR Training Live Quiz', 200),
+      training_name: cleanText(body?.training_name, 'ICOFR — Pengendalian Pelaporan Keuangan Bank', 240),
       trainer_name: cleanText(body?.trainer_name, user.name || 'Trainer', 160),
       description: cleanText(body?.description, 'Interactive training quiz session', 1000),
       mode,

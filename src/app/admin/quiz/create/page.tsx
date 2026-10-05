@@ -16,12 +16,12 @@ export default function CreateQuizPage() {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   // Step 1: Info & Settings
-  const [title, setTitle] = useState('QAIP Training Live Quiz');
-  const [trainingName, setTrainingName] = useState('QAIP & GIAS 2024 Certification Training');
+  const [title, setTitle] = useState('ICOFR Training Live Quiz');
+  const [trainingName, setTrainingName] = useState('ICOFR — Pengendalian Pelaporan Keuangan Bank');
   const [trainerName, setTrainerName] = useState('Lead Auditor & Trainer');
-  const [description, setDescription] = useState('Sesi quiz kompetitif dan evaluasi pemahaman standar audit intern perbankan.');
+  const [description, setDescription] = useState('Sesi kuis dan evaluasi penerapan pengendalian pelaporan keuangan bank.');
   const [mode, setMode] = useState<QuizMode>('LIVE_COMPETITION');
-  const [timePerQuestion, setTimePerQuestion] = useState(20);
+  const [timePerQuestion, setTimePerQuestion] = useState(60);
   const [speedBonusEnabled, setSpeedBonusEnabled] = useState(true);
   const [streakBonusEnabled, setStreakBonusEnabled] = useState(true);
   const [scoringMode, setScoringMode] = useState<ScoringMode>('STANDARD');
@@ -31,7 +31,7 @@ export default function CreateQuizPage() {
 
   // Step 2: Question Selection
   const [selectionType, setSelectionType] = useState<'random' | 'manual'>('random');
-  const [questionCount, setQuestionCount] = useState<number>(20);
+  const [questionCount, setQuestionCount] = useState<number>(15);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [difficultyFilter, setDifficultyFilter] = useState('ALL');
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
@@ -46,8 +46,8 @@ export default function CreateQuizPage() {
       .then(res => {
         if (res.success) {
           setAllQuestions(res.data);
-          // Pre-select first 20 for manual
-          setSelectedQuestionIds(res.data.slice(0, 20).map((q: Question) => q.question_id));
+          // Pre-select first 15 for manual
+          setSelectedQuestionIds(res.data.slice(0, 15).map((q: Question) => q.question_id));
         }
       })
       .catch(console.error);
@@ -135,7 +135,7 @@ export default function CreateQuizPage() {
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white">BUAT SESI QUIZ BARU</h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Konfigurasikan informasi sesi dan tentukan komposisi soal dari 50 Bank Soal QAIP
+            Konfigurasikan informasi sesi dan tentukan komposisi soal dari {allQuestions.length} soal ICOFR
           </p>
         </div>
 
@@ -268,7 +268,7 @@ export default function CreateQuizPage() {
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm"
                   >
                     <option value={15}>15 Detik (Cepat / Flash)</option>
-                    <option value={20}>20 Detik (Standar)</option>
+                    <option value={20}>20 Detik</option>
                     <option value={25}>25 Detik (Sedang)</option>
                     <option value={30}>30 Detik (Materi Panjang)</option>
                     <option value={45}>45 Detik (Case-Based)</option>
@@ -354,7 +354,7 @@ export default function CreateQuizPage() {
                   <BookOpen className="w-5 h-5 text-cyan-400" />
                   Langkah 2: Komposisi Soal ({selectionType === 'random' ? `${questionCount} Soal Acak` : `${selectedQuestionIds.length} Soal Terpilih`})
                 </h2>
-                <p className="text-xs text-slate-400">Total bank soal tersedia: {allQuestions.length} Soal QAIP</p>
+                <p className="text-xs text-slate-400">Total bank soal tersedia: {allQuestions.length} Soal ICOFR</p>
               </div>
 
               {/* Mode Selector Tab */}
@@ -386,7 +386,7 @@ export default function CreateQuizPage() {
                     Pilih Jumlah Soal
                   </label>
                   <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                    {[5, 10, 15, 20, 25, 30, 40, 50].map((num) => (
+                    {[5, 10, 15].filter((num) => num <= filteredQuestions.length).map((num) => (
                       <button
                         key={num}
                         type="button"
@@ -413,7 +413,7 @@ export default function CreateQuizPage() {
                       onChange={(e) => setCategoryFilter(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs"
                     >
-                      <option value="ALL">Semua 10 Kategori QAIP</option>
+                      <option value="ALL">Semua Kategori</option>
                       {categories.map((c, i) => (
                         <option key={i} value={c}>{c}</option>
                       ))}
