@@ -11,7 +11,7 @@ import {
   UserAccount,
 } from '@/types/quiz';
 
-const QUESTION_BANK_VERSION = 'icofr-15-v1';
+const QUESTION_BANK_VERSION = 'icofr-30-v2';
 
 interface DatabaseData {
   question_bank_version?: string;

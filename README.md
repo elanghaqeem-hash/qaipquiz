@@ -80,8 +80,10 @@ The current Durable Object implementation stores a revisioned application state 
 
 ## Bank Soal ICOFR
 
-Bank aktif berisi 15 soal pilihan tunggal berbahasa Indonesia (ICOFR-001 hingga ICOFR-015), masing-masing dengan empat opsi, kunci jawaban, penjelasan, dan rujukan praktik. PCAOB AS 2201 digunakan sebagai referensi praktik, bukan klaim kewajiban regulasi Indonesia.
+Bank aktif berisi 30 soal pilihan tunggal berbahasa Indonesia (ICOFR-001 hingga ICOFR-030), masing-masing dengan empat opsi, kunci jawaban, penjelasan, dan rujukan praktik. PCAOB AS 2201 digunakan sebagai referensi praktik, bukan klaim kewajiban regulasi Indonesia.
 
-Versi bank `icofr-15-v1` otomatis mengganti bank soal dan template lama pada pembacaan database pertama setelah deployment. Migrasi dipersistenkan dengan pemeriksaan revisi Durable Object; akun, sesi historis (termasuk snapshot soal), peserta, dan jawaban tetap disimpan. Sesudah migrasi, perubahan soal oleh Admin tidak ditimpa pada pembacaan berikutnya. Buat sesi baru untuk menggunakan materi ICOFR; sesi yang sudah dibuat mempertahankan materi asalnya.
+Versi bank `icofr-30-v2` otomatis mengganti bank soal dan template lama pada pembacaan database pertama setelah deployment. Migrasi dipersistenkan dengan pemeriksaan revisi Durable Object; akun, sesi historis (termasuk snapshot soal), peserta, dan jawaban tetap disimpan. Sesudah migrasi, perubahan soal oleh Admin tidak ditimpa pada pembacaan berikutnya. Buat sesi baru untuk menggunakan materi ICOFR; sesi yang sudah dibuat mempertahankan materi asalnya.
 
 Default pembuatan sesi Admin/Trainer: 15 soal dan 60 detik per soal. Template pre-test, post-test, live competition, dan team battle menggunakan kategori ICOFR.
+
+Tambahan soal ICOFR-016–030 membahas cut-off, jurnal manual, presisi reviu, sampling, penyimpangan, kontrol kompensasi, IPE, ITAC, akses, outsourcing, CSA, dan dokumentasi. Sesi tetap default 15 soal; Admin/Trainer dapat memilih hingga 30 soal. Pembaruan versi mengganti bank aktif dengan 30 soal standar, termasuk mengganti edit bank pada versi sebelumnya; riwayat sesi tetap utuh.

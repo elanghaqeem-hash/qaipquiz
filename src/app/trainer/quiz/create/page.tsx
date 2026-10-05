@@ -386,7 +386,7 @@ export default function CreateQuizPage() {
                     Pilih Jumlah Soal
                   </label>
                   <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                    {[5, 10, 15].filter((num) => num <= filteredQuestions.length).map((num) => (
+                    {[5, 10, 15, 20, 25, 30].filter((num) => num <= filteredQuestions.length).map((num) => (
                       <button
                         key={num}
                         type="button"
